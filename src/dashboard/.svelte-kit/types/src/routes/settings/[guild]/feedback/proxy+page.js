@@ -7,20 +7,23 @@ export async function load({ fetch, params }) {
 
 	try {
 		const [feedbackRes, analyticsRes, categoriesRes] = await Promise.all([
-			fetch(`/api/admin/guilds/${params.guild}/feedback`, fetchOptions),
+			fetch(`/api/admin/guilds/${params.guild}/feedback?limit=100`, fetchOptions),
 			fetch(`/api/admin/guilds/${params.guild}/analytics`, fetchOptions),
 			fetch(`/api/admin/guilds/${params.guild}/categories`, fetchOptions)
 		]);
 
-		const feedback = feedbackRes.ok ? await feedbackRes.json() : [];
+		const feedbackData = feedbackRes.ok ? await feedbackRes.json() : { feedback: [] };
 		const analytics = analyticsRes.ok ? await analyticsRes.json() : null;
 		const categories = categoriesRes.ok ? await categoriesRes.json() : [];
 
+		// Use the feedback array from the API response
+		const feedback = feedbackData.feedback || [];
+
 		// Calculate feedback statistics
 		const stats = {
-			total: feedback.length,
-			avgRating: feedback.length > 0 ? (feedback.reduce((sum, f) => sum + (f.rating || 0), 0) / feedback.length).toFixed(2) : 0,
-			byRating: {
+			total: feedbackData.totalCount || feedback.length,
+			avgRating: feedbackData.avgRating || (feedback.length > 0 ? (feedback.reduce((sum, f) => sum + (f.rating || 0), 0) / feedback.length).toFixed(2) : 0),
+			byRating: feedbackData.ratingCounts || {
 				5: feedback.filter(f => f.rating === 5).length,
 				4: feedback.filter(f => f.rating === 4).length,
 				3: feedback.filter(f => f.rating === 3).length,
@@ -32,10 +35,12 @@ export async function load({ fetch, params }) {
 		// Group feedback by category
 		const feedbackByCategory = {};
 		feedback.forEach(f => {
-			if (!feedbackByCategory[f.categoryId]) {
-				feedbackByCategory[f.categoryId] = [];
+			// Use categoryName from API response, fall back to 'Unknown'
+			const categoryName = f.categoryName || 'Unknown';
+			if (!feedbackByCategory[categoryName]) {
+				feedbackByCategory[categoryName] = [];
 			}
-			feedbackByCategory[f.categoryId].push(f);
+			feedbackByCategory[categoryName].push(f);
 		});
 
 		return {

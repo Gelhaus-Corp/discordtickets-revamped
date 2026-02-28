@@ -68,7 +68,16 @@
 	];
 
 	qS.questions = category.questions;
-	channels = channels.filter((c) => c.type === 4); // category
+	// Filter channels based on channel mode - will be updated reactively
+	let filteredChannels = $derived.by(() => {
+		if (category.channelMode === 'FORUM') {
+			// For forum mode, show forum channels (type 15)
+			return channels.filter((c) => c.type === 15);
+		} else {
+			// For CHANNEL and THREAD modes, show categories (type 4)
+			return channels.filter((c) => c.type === 4);
+		}
+	});
 	roles = roles.filter((r) => r.name !== '@everyone').sort((a, b) => b.rawPosition - a.rawPosition);
 	roles.forEach((r) => {
 		r._hexColor = r.color > 0 ? `#${r.color.toString(16).padStart(6, '0')}` : null;
@@ -286,18 +295,24 @@
 				</div>
 				<div>
 					<label class="font-medium">
-						Discord category
+						{#if category.channelMode === 'FORUM'}
+							Discord forum channel
+						{:else}
+							Discord category
+						{/if}
 						<Required />
 						<i
 							class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
-							title="Which category channel should ticket channels be created under?"
+							title={category.channelMode === 'FORUM' 
+								? 'Which forum channel should tickets be created in?' 
+								: 'Which category channel should ticket channels be created under?'}
 						></i>
 						<select class="input form-multiselect" required bind:value={category.discordCategory}>
 							{#if !category.discordCategory || category.discordCategory === 'new'}
-								<option value="new">Create a new category</option>
+								<option value="new">Create a new {category.channelMode === 'FORUM' ? 'forum' : 'category'}</option>
 								<hr />
 							{/if}
-							{#each channels as channel}
+							{#each filteredChannels as channel}
 								<option value={channel.id} class="p-1">
 									<!-- <i class="fa-solid fa-hashtag text-gray-500 dark:text-slate-400" /> -->
 									{channel.name}

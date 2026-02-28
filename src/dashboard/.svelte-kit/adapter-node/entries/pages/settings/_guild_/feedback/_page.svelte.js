@@ -29,9 +29,6 @@ function _page($$renderer, $$props) {
       };
       return colors[rating] || "bg-gray-100 dark:bg-gray-900/30";
     };
-    const getCategoryName = (categoryId) => {
-      return data.categories.find((c) => c.id === categoryId)?.name || "Unknown";
-    };
     $$renderer2.push(`<h1 class="m-4 text-center text-4xl font-bold">Feedback &amp; Analytics</h1> <div class="mx-auto my-8 max-w-6xl px-4"><div class="grid grid-cols-1 gap-4 md:grid-cols-4 mb-8"><div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700"><div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Total Feedback</div> <div class="mt-2 text-3xl font-bold">${escape_html(data.stats.total)}</div></div> <div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700"><div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Average Rating</div> <div class="mt-2 text-3xl font-bold">${escape_html(data.stats.avgRating)} / 5</div> <div class="mt-1 flex gap-1"><!--[-->`);
     const each_array = ensure_array_like(Array(5));
     for (let i = 0, $$length = each_array.length; i < $$length; i++) {
@@ -69,8 +66,7 @@ function _page($$renderer, $$props) {
       $$renderer2.push(`<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700 mb-8"><h2 class="mb-6 text-2xl font-bold">Feedback by Category</h2> <div class="space-y-4"><!--[-->`);
       const each_array_4 = ensure_array_like(Object.entries(data.feedbackByCategory));
       for (let $$index_6 = 0, $$length = each_array_4.length; $$index_6 < $$length; $$index_6++) {
-        let [categoryId, categoryFeedback] = each_array_4[$$index_6];
-        const categoryName = getCategoryName(categoryId);
+        let [categoryName, categoryFeedback] = each_array_4[$$index_6];
         const avgRating = (categoryFeedback.reduce((sum, f) => sum + (f.rating || 0), 0) / categoryFeedback.length).toFixed(2);
         $$renderer2.push(`<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600"><div class="flex items-center justify-between mb-3"><div class="font-semibold text-lg">${escape_html(categoryName)}</div> <div class="flex items-center gap-2"><span class="text-sm text-gray-600 dark:text-slate-400">${escape_html(avgRating)} / 5</span> <div class="flex gap-1"><!--[-->`);
         const each_array_5 = ensure_array_like(Array(5));
@@ -98,8 +94,7 @@ function _page($$renderer, $$props) {
       const each_array_7 = ensure_array_like(data.feedback.slice(0, 20));
       for (let $$index_8 = 0, $$length = each_array_7.length; $$index_8 < $$length; $$index_8++) {
         let feedback = each_array_7[$$index_8];
-        $$renderer2.push(`<div${attr_class(`rounded-lg p-4 ${getRatingColor(feedback.rating)}`)}><div class="flex items-start justify-between mb-2"><div><div class="font-semibold">${escape_html(getCategoryName(feedback.categoryId))}</div> <div class="text-sm text-gray-600 dark:text-slate-400">Ticket #
-									${escape_html(feedback.ticketId || "N/A")}</div></div> <div class="flex gap-1"><!--[-->`);
+        $$renderer2.push(`<div${attr_class(`rounded-lg p-4 ${getRatingColor(feedback.rating)}`)}><div class="flex items-start justify-between mb-2"><div><div class="font-semibold">${escape_html(feedback.categoryName || "Unknown")}</div> <div class="text-sm text-gray-600 dark:text-slate-400">Ticket #${escape_html(feedback.ticketNumber || "N/A")}</div></div> <div class="flex gap-1"><!--[-->`);
         const each_array_8 = ensure_array_like(Array(5));
         for (let i = 0, $$length2 = each_array_8.length; i < $$length2; i++) {
           each_array_8[i];

@@ -1,3 +1,11 @@
+function reroute({ url }) {
+  const pathMatch = url.pathname.match(/^\/(\d+)(\/.*)?$/);
+  if (pathMatch && !url.pathname.startsWith("/settings/")) {
+    const guildId = pathMatch[1];
+    const rest = pathMatch[2] || "";
+    return `/settings/${guildId}${rest}`;
+  }
+}
 async function handle({ event, resolve }) {
   const response = await resolve(event, {
     filterSerializedResponseHeaders: () => true
@@ -16,5 +24,6 @@ function handleError({ error, event }) {
 }
 export {
   handle,
-  handleError
+  handleError,
+  reroute
 };
