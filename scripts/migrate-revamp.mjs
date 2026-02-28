@@ -32,7 +32,7 @@ import { config } from 'dotenv';
 	try {
 		categoriesWithoutMode = await prisma.category.findMany({
 			select: { id: true, name: true },
-			where: { channelMode: null },
+			where: { channelMode: { equals: null } },
 		});
 	} catch (err) {
 		// Fallback for Prisma validation errors: query raw for NULL channelMode
@@ -245,7 +245,7 @@ if (!ONLY_TRANSCRIPTS && !ONLY_FEEDBACK) {
 
 	const categoriesWithoutMode = await prisma.category.findMany({
 		select: { id: true, name: true },
-		where: { channelMode: null },
+		where: { channelMode: { equals: null } },
 	});
 
 	if (categoriesWithoutMode.length === 0) {
@@ -261,7 +261,7 @@ if (!ONLY_TRANSCRIPTS && !ONLY_FEEDBACK) {
 			} else {
 				await prisma.category.updateMany({
 					data: { channelMode: 'CHANNEL' },
-					where: { channelMode: null },
+					where: { channelMode: { equals: null } },
 				});
 				ok(`Updated ${categoriesWithoutMode.length} categories.`);
 			}

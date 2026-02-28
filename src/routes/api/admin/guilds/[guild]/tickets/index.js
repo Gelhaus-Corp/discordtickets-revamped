@@ -18,7 +18,7 @@ module.exports.get = fastify => ({
 				createdById: true,
 				firstResponseAt: true,
 				guildId: true,
-				htmlTranscript: true,
+				htmlTranscript: true /* may be missing in older DB */,
 				id: true,
 				messageCount: true,
 				number: true,
