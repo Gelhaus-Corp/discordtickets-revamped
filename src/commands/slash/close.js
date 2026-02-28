@@ -6,7 +6,7 @@ module.exports = class CloseSlashCommand extends SlashCommand {
 		const name = 'close';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Close a ticket',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,

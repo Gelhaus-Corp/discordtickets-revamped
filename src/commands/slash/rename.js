@@ -14,7 +14,7 @@ module.exports = class RenameSlashCommand extends SlashCommand {
 		const name = 'rename';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Rename a ticket channel',
 			descriptionLocalisations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,

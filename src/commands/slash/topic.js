@@ -16,7 +16,7 @@ module.exports = class TopicSlashCommand extends SlashCommand {
 		const name = 'topic';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Manage ticket topics',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,

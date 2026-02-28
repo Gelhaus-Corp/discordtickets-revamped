@@ -13,7 +13,7 @@ module.exports = class TransferSlashCommand extends SlashCommand {
 		const name = 'transfer';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Transfer a ticket to another user',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,
