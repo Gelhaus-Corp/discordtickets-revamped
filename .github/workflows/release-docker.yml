@@ -3,6 +3,7 @@ name: Release Docker image
 on:
   release:
     types: [published]
+  push:
 
 env:
   REGISTRY: ghcr.io
@@ -43,8 +44,8 @@ jobs:
             type=semver,pattern={{major}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{version}}
-            # :latest only on stable (non-pre-release) releases
-            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+            # :latest always produced (builds on push will also push latest)
+            type=raw,value=latest,enable=true
 
       - name: Build and push
         uses: docker/build-push-action@v6
