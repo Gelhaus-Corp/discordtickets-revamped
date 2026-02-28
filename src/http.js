@@ -218,8 +218,17 @@ module.exports = async client => {
 	if (handlerModule && handlerModule.handler) {
 		const { handler } = handlerModule;
 		// https://stackoverflow.com/questions/72317071/how-to-set-up-fastify-correctly-so-that-sveltekit-works-fine
-		fastify.all('/*', {}, (req, res) => handler(req.raw, res.raw, () => {
-		}));
+		fastify.all('/*', {}, (req, res) => {
+			try {
+				handler(req.raw, res.raw, () => {});
+			} catch (err) {
+				client.log.error.http('Dashboard handler error:', err);
+				if (!res.headersSent) {
+					res.statusCode = 500;
+					res.send({ error: 'Internal Server Error' });
+				}
+			}
+		});
 	}
 
 	// start the fastify server

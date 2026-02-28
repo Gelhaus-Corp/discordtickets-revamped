@@ -191,4 +191,3 @@
 			View Full Feedback Portal
 			<i class="fa-solid fa-arrow-right-long ml-2"></i>		</a>
 	</div>
-</div>

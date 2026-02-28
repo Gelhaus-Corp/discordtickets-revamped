@@ -1,17 +1,1642 @@
-import { d as dev } from "./chunks/false.js";
-import { json, text, error } from "@sveltejs/kit";
-import { Redirect, SvelteKitError, ActionFailure, HttpError } from "@sveltejs/kit/internal";
-import { with_request_store, merge_tracing, try_get_request_store } from "@sveltejs/kit/internal/server";
-import { a as assets, b as base, c as app_dir, r as relative, o as override, d as reset } from "./chunks/server.js";
-import { E as ENDPOINT_METHODS, P as PAGE_METHODS, n as negotiate, m as method_not_allowed, h as handle_error_and_jsonify, g as get_status, i as is_form_content_type, a as normalize_error, b as get_global_name, s as serialize_uses, c as clarify_devalue_error, d as get_node_type, e as escape_html, S as SVELTE_KIT_ASSETS, f as create_remote_key, j as static_error_page, r as redirect_response, p as parse_remote_arg, k as stringify, l as deserialize_binary_form, o as has_prerendered_path, T as TRAILING_SLASH_PARAM, I as INVALIDATED_PARAM, q as handle_fatal_error, M as MUTATIVE_METHODS, t as format_server_error } from "./chunks/shared.js";
-import * as devalue from "devalue";
-import { m as make_trackable, d as disable_search, a as decode_params, S as SCHEME, n as normalize_path, r as resolve, b as decode_pathname } from "./chunks/url.js";
-import { b as base64_encode, t as text_decoder, a as text_encoder, g as get_relative_path } from "./chunks/utils.js";
-import { r as readable, w as writable } from "./chunks/index.js";
-import { p as public_env, r as read_implementation, o as options, s as set_private_env, a as set_public_env, g as get_hooks, b as set_read_implementation } from "./chunks/internal.js";
-import { v as validate_layout_server_exports, a as validate_layout_exports, b as validate_page_server_exports, c as validate_page_exports, d as validate_server_exports } from "./chunks/exports.js";
-import { parse, serialize } from "cookie";
-import * as set_cookie_parser from "set-cookie-parser";
+import { D as DevalueError, i as is_primitive, g as get_type, a as is_plain_object, e as enumerable_symbols, s as stringify_key, b as stringify_string, v as valid_array_indices, d as dev, u as uneval } from './chunks/index2-D-VkFrUc.js';
+import { H as HttpError, j as json, t as text, S as SvelteKitError, R as Redirect, e as error, A as ActionFailure } from './chunks/index-BcOZ6EV9.js';
+import { w as with_request_store, r as root, d as decode_pathname, n as normalize_path, a as disable_search, b as decode_params, c as resolve, m as make_trackable } from './chunks/root-OrB--9Lj.js';
+import { b as base, a as app_dir, c as assets, r as relative, o as override, d as reset } from './chunks/server-Bf8x1V_n.js';
+import { t as text_decoder, b as base64_decode, v as validate_layout_server_exports, a as validate_layout_exports, c as validate_page_server_exports, d as validate_page_exports, e as text_encoder, g as get_relative_path, f as base64_encode } from './chunks/exports-7ECo9oy7.js';
+import { r as readable, w as writable } from './chunks/index-PiinLdtd.js';
+import { c as cookieExports } from './chunks/index-CZvAxaSW.js';
+import './chunks/escaping-CqgfEcN3.js';
+import './chunks/utils-FiC4zhrQ.js';
+
+/**
+ * @template {{ tracing: { enabled: boolean, root: import('@opentelemetry/api').Span, current: import('@opentelemetry/api').Span } }} T
+ * @param {T} event_like
+ * @param {import('@opentelemetry/api').Span} current
+ * @returns {T}
+ */
+function merge_tracing(event_like, current) {
+	return {
+		...event_like,
+		tracing: {
+			...event_like.tracing,
+			current
+		}
+	};
+}
+
+/**
+ * Base64 Encodes an arraybuffer
+ * @param {ArrayBuffer} arraybuffer
+ * @returns {string}
+ */
+function encode64(arraybuffer) {
+  const dv = new DataView(arraybuffer);
+  let binaryString = "";
+
+  for (let i = 0; i < arraybuffer.byteLength; i++) {
+    binaryString += String.fromCharCode(dv.getUint8(i));
+  }
+
+  return binaryToAscii(binaryString);
+}
+
+/**
+ * Decodes a base64 string into an arraybuffer
+ * @param {string} string
+ * @returns {ArrayBuffer}
+ */
+function decode64(string) {
+  const binaryString = asciiToBinary(string);
+  const arraybuffer = new ArrayBuffer(binaryString.length);
+  const dv = new DataView(arraybuffer);
+
+  for (let i = 0; i < arraybuffer.byteLength; i++) {
+    dv.setUint8(i, binaryString.charCodeAt(i));
+  }
+
+  return arraybuffer;
+}
+
+const KEY_STRING =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/**
+ * Substitute for atob since it's deprecated in node.
+ * Does not do any input validation.
+ *
+ * @see https://github.com/jsdom/abab/blob/master/lib/atob.js
+ *
+ * @param {string} data
+ * @returns {string}
+ */
+function asciiToBinary(data) {
+  if (data.length % 4 === 0) {
+    data = data.replace(/==?$/, "");
+  }
+
+  let output = "";
+  let buffer = 0;
+  let accumulatedBits = 0;
+
+  for (let i = 0; i < data.length; i++) {
+    buffer <<= 6;
+    buffer |= KEY_STRING.indexOf(data[i]);
+    accumulatedBits += 6;
+    if (accumulatedBits === 24) {
+      output += String.fromCharCode((buffer & 0xff0000) >> 16);
+      output += String.fromCharCode((buffer & 0xff00) >> 8);
+      output += String.fromCharCode(buffer & 0xff);
+      buffer = accumulatedBits = 0;
+    }
+  }
+  if (accumulatedBits === 12) {
+    buffer >>= 4;
+    output += String.fromCharCode(buffer);
+  } else if (accumulatedBits === 18) {
+    buffer >>= 2;
+    output += String.fromCharCode((buffer & 0xff00) >> 8);
+    output += String.fromCharCode(buffer & 0xff);
+  }
+  return output;
+}
+
+/**
+ * Substitute for btoa since it's deprecated in node.
+ * Does not do any input validation.
+ *
+ * @see https://github.com/jsdom/abab/blob/master/lib/btoa.js
+ *
+ * @param {string} str
+ * @returns {string}
+ */
+function binaryToAscii(str) {
+  let out = "";
+  for (let i = 0; i < str.length; i += 3) {
+    /** @type {[number, number, number, number]} */
+    const groupsOfSix = [undefined, undefined, undefined, undefined];
+    groupsOfSix[0] = str.charCodeAt(i) >> 2;
+    groupsOfSix[1] = (str.charCodeAt(i) & 0x03) << 4;
+    if (str.length > i + 1) {
+      groupsOfSix[1] |= str.charCodeAt(i + 1) >> 4;
+      groupsOfSix[2] = (str.charCodeAt(i + 1) & 0x0f) << 2;
+    }
+    if (str.length > i + 2) {
+      groupsOfSix[2] |= str.charCodeAt(i + 2) >> 6;
+      groupsOfSix[3] = str.charCodeAt(i + 2) & 0x3f;
+    }
+    for (let j = 0; j < groupsOfSix.length; j++) {
+      if (typeof groupsOfSix[j] === "undefined") {
+        out += "=";
+      } else {
+        out += KEY_STRING[groupsOfSix[j]];
+      }
+    }
+  }
+  return out;
+}
+
+const UNDEFINED = -1;
+const HOLE = -2;
+const NAN = -3;
+const POSITIVE_INFINITY = -4;
+const NEGATIVE_INFINITY = -5;
+const NEGATIVE_ZERO = -6;
+const SPARSE = -7;
+
+/**
+ * Revive a value serialized with `devalue.stringify`
+ * @param {string} serialized
+ * @param {Record<string, (value: any) => any>} [revivers]
+ */
+function parse(serialized, revivers) {
+	return unflatten(JSON.parse(serialized), revivers);
+}
+
+/**
+ * Revive a value flattened with `devalue.stringify`
+ * @param {number | any[]} parsed
+ * @param {Record<string, (value: any) => any>} [revivers]
+ */
+function unflatten(parsed, revivers) {
+	if (typeof parsed === 'number') return hydrate(parsed, true);
+
+	if (!Array.isArray(parsed) || parsed.length === 0) {
+		throw new Error('Invalid input');
+	}
+
+	const values = /** @type {any[]} */ (parsed);
+
+	const hydrated = Array(values.length);
+
+	/**
+	 * A set of values currently being hydrated with custom revivers,
+	 * used to detect invalid cyclical dependencies
+	 * @type {Set<number> | null}
+	 */
+	let hydrating = null;
+
+	/**
+	 * @param {number} index
+	 * @returns {any}
+	 */
+	function hydrate(index, standalone = false) {
+		if (index === UNDEFINED) return undefined;
+		if (index === NAN) return NaN;
+		if (index === POSITIVE_INFINITY) return Infinity;
+		if (index === NEGATIVE_INFINITY) return -Infinity;
+		if (index === NEGATIVE_ZERO) return -0;
+
+		if (standalone || typeof index !== 'number') {
+			throw new Error(`Invalid input`);
+		}
+
+		if (index in hydrated) return hydrated[index];
+
+		const value = values[index];
+
+		if (!value || typeof value !== 'object') {
+			hydrated[index] = value;
+		} else if (Array.isArray(value)) {
+			if (typeof value[0] === 'string') {
+				const type = value[0];
+
+				const reviver =
+					revivers && Object.hasOwn(revivers, type)
+						? revivers[type]
+						: undefined;
+
+				if (reviver) {
+					let i = value[1];
+					if (typeof i !== 'number') {
+						// if it's not a number, it was serialized by a builtin reviver
+						// so we need to munge it into the format expected by a custom reviver
+						i = values.push(value[1]) - 1;
+					}
+
+					hydrating ??= new Set();
+
+					if (hydrating.has(i)) {
+						throw new Error('Invalid circular reference');
+					}
+
+					hydrating.add(i);
+					hydrated[index] = reviver(hydrate(i));
+					hydrating.delete(i);
+
+					return hydrated[index];
+				}
+
+				switch (type) {
+					case 'Date':
+						hydrated[index] = new Date(value[1]);
+						break;
+
+					case 'Set':
+						const set = new Set();
+						hydrated[index] = set;
+						for (let i = 1; i < value.length; i += 1) {
+							set.add(hydrate(value[i]));
+						}
+						break;
+
+					case 'Map':
+						const map = new Map();
+						hydrated[index] = map;
+						for (let i = 1; i < value.length; i += 2) {
+							map.set(hydrate(value[i]), hydrate(value[i + 1]));
+						}
+						break;
+
+					case 'RegExp':
+						hydrated[index] = new RegExp(value[1], value[2]);
+						break;
+
+					case 'Object':
+						hydrated[index] = Object(value[1]);
+						break;
+
+					case 'BigInt':
+						hydrated[index] = BigInt(value[1]);
+						break;
+
+					case 'null':
+						const obj = Object.create(null);
+						hydrated[index] = obj;
+						for (let i = 1; i < value.length; i += 2) {
+							obj[value[i]] = hydrate(value[i + 1]);
+						}
+						break;
+
+					case 'Int8Array':
+					case 'Uint8Array':
+					case 'Uint8ClampedArray':
+					case 'Int16Array':
+					case 'Uint16Array':
+					case 'Int32Array':
+					case 'Uint32Array':
+					case 'Float32Array':
+					case 'Float64Array':
+					case 'BigInt64Array':
+					case 'BigUint64Array': {
+						if (values[value[1]][0] !== 'ArrayBuffer') {
+							// without this, if we receive malformed input we could
+							// end up trying to hydrate in a circle or allocate
+							// huge amounts of memory when we call `new TypedArrayConstructor(buffer)`
+							throw new Error('Invalid data');
+						}
+
+						const TypedArrayConstructor = globalThis[type];
+						const buffer = hydrate(value[1]);
+						const typedArray = new TypedArrayConstructor(buffer);
+
+						hydrated[index] =
+							value[2] !== undefined
+								? typedArray.subarray(value[2], value[3])
+								: typedArray;
+
+						break;
+					}
+
+					case 'ArrayBuffer': {
+						const base64 = value[1];
+						if (typeof base64 !== 'string') {
+							throw new Error('Invalid ArrayBuffer encoding');
+						}
+						const arraybuffer = decode64(base64);
+						hydrated[index] = arraybuffer;
+						break;
+					}
+
+					case 'Temporal.Duration':
+					case 'Temporal.Instant':
+					case 'Temporal.PlainDate':
+					case 'Temporal.PlainTime':
+					case 'Temporal.PlainDateTime':
+					case 'Temporal.PlainMonthDay':
+					case 'Temporal.PlainYearMonth':
+					case 'Temporal.ZonedDateTime': {
+						const temporalName = type.slice(9);
+						// @ts-expect-error TS doesn't know about Temporal yet
+						hydrated[index] = Temporal[temporalName].from(value[1]);
+						break;
+					}
+
+					case 'URL': {
+						const url = new URL(value[1]);
+						hydrated[index] = url;
+						break;
+					}
+
+					case 'URLSearchParams': {
+						const url = new URLSearchParams(value[1]);
+						hydrated[index] = url;
+						break;
+					}
+
+					default:
+						throw new Error(`Unknown type ${type}`);
+				}
+			} else if (value[0] === SPARSE) {
+				// Sparse array encoding: [SPARSE, length, idx, val, idx, val, ...]
+				const len = value[1];
+
+				const array = new Array(len);
+				hydrated[index] = array;
+
+				for (let i = 2; i < value.length; i += 2) {
+					const idx = value[i];
+					array[idx] = hydrate(value[i + 1]);
+				}
+			} else {
+				const array = new Array(value.length);
+				hydrated[index] = array;
+
+				for (let i = 0; i < value.length; i += 1) {
+					const n = value[i];
+					if (n === HOLE) continue;
+
+					array[i] = hydrate(n);
+				}
+			}
+		} else {
+			/** @type {Record<string, any>} */
+			const object = {};
+			hydrated[index] = object;
+
+			for (const key of Object.keys(value)) {
+				if (key === '__proto__') {
+					throw new Error('Cannot parse an object with a `__proto__` property');
+				}
+
+				const n = value[key];
+				object[key] = hydrate(n);
+			}
+		}
+
+		return hydrated[index];
+	}
+
+	return hydrate(0);
+}
+
+/**
+ * Turn a value into a JSON string that can be parsed with `devalue.parse`
+ * @param {any} value
+ * @param {Record<string, (value: any) => any>} [reducers]
+ */
+function stringify$1(value, reducers) {
+	/** @type {any[]} */
+	const stringified = [];
+
+	/** @type {Map<any, number>} */
+	const indexes = new Map();
+
+	/** @type {Array<{ key: string, fn: (value: any) => any }>} */
+	const custom = [];
+	if (reducers) {
+		for (const key of Object.getOwnPropertyNames(reducers)) {
+			custom.push({ key, fn: reducers[key] });
+		}
+	}
+
+	/** @type {string[]} */
+	const keys = [];
+
+	let p = 0;
+
+	/** @param {any} thing */
+	function flatten(thing) {
+		if (thing === undefined) return UNDEFINED;
+		if (Number.isNaN(thing)) return NAN;
+		if (thing === Infinity) return POSITIVE_INFINITY;
+		if (thing === -Infinity) return NEGATIVE_INFINITY;
+		if (thing === 0 && 1 / thing < 0) return NEGATIVE_ZERO;
+
+		if (indexes.has(thing)) return indexes.get(thing);
+
+		const index = p++;
+		indexes.set(thing, index);
+
+		for (const { key, fn } of custom) {
+			const value = fn(thing);
+			if (value) {
+				stringified[index] = `["${key}",${flatten(value)}]`;
+				return index;
+			}
+		}
+
+		if (typeof thing === 'function') {
+			throw new DevalueError(`Cannot stringify a function`, keys, thing, value);
+		}
+
+		let str = '';
+
+		if (is_primitive(thing)) {
+			str = stringify_primitive(thing);
+		} else {
+			const type = get_type(thing);
+
+			switch (type) {
+				case 'Number':
+				case 'String':
+				case 'Boolean':
+					str = `["Object",${stringify_primitive(thing)}]`;
+					break;
+
+				case 'BigInt':
+					str = `["BigInt",${thing}]`;
+					break;
+
+				case 'Date':
+					const valid = !isNaN(thing.getDate());
+					str = `["Date","${valid ? thing.toISOString() : ''}"]`;
+					break;
+
+				case 'URL':
+					str = `["URL",${stringify_string(thing.toString())}]`;
+					break;
+
+				case 'URLSearchParams':
+					str = `["URLSearchParams",${stringify_string(thing.toString())}]`;
+					break;
+
+				case 'RegExp':
+					const { source, flags } = thing;
+					str = flags
+						? `["RegExp",${stringify_string(source)},"${flags}"]`
+						: `["RegExp",${stringify_string(source)}]`;
+					break;
+
+				case 'Array': {
+					// For dense arrays (no holes), we iterate normally.
+					// When we encounter the first hole, we call Object.keys
+					// to determine the sparseness, then decide between:
+					//   - HOLE encoding: [-2, val, -2, ...] (default)
+					//   - Sparse encoding: [-7, length, idx, val, ...] (for very sparse arrays)
+					// Only the sparse path avoids iterating every slot, which
+					// is what protects against the DoS of e.g. `arr[1000000] = 1`.
+					let mostly_dense = false;
+
+					str = '[';
+
+					for (let i = 0; i < thing.length; i += 1) {
+						if (i > 0) str += ',';
+
+						if (Object.hasOwn(thing, i)) {
+							keys.push(`[${i}]`);
+							str += flatten(thing[i]);
+							keys.pop();
+						} else if (mostly_dense) {
+							// Use dense encoding. The heuristic guarantees the
+							// array is only mildly sparse, so iterating over every
+							// slot is fine.
+							str += HOLE;
+						} else {
+							// Decide between HOLE encoding and sparse encoding.
+							//
+							// HOLE encoding: each hole is serialized as the HOLE
+							// sentinel (-2). For example, [, "a", ,] becomes
+							// [-2, 0, -2]. Each hole costs 3 chars ("-2" + comma).
+							//
+							// Sparse encoding: lists only populated indices.
+							// For example, [, "a", ,] becomes [-7, 3, 1, 0] — the
+							// -7 sentinel, the array length (3), then index-value
+							// pairs. This avoids paying per-hole, but each element
+							// costs extra chars to write its index.
+							//
+							// The values are the same size either way, so the
+							// choice comes down to structural overhead:
+							//
+							//   HOLE overhead:
+							//     3 chars per hole ("-2" + comma)
+							//     = (L - P) * 3
+							//
+							//   Sparse overhead:
+							//     "-7,"          — 3 chars (sparse sentinel + comma)
+							//     + length + "," — (d + 1) chars (array length + comma)
+							//     + per element: index + "," — (d + 1) chars
+							//     = (4 + d) + P * (d + 1)
+							//
+							// where L is the array length, P is the number of
+							// populated elements, and d is the number of digits
+							// in L (an upper bound on the digits in any index).
+							//
+							// Sparse encoding is cheaper when:
+							//   (4 + d) + P * (d + 1) < (L - P) * 3
+							const populated_keys = valid_array_indices(/** @type {any[]} */ (thing));
+							const population = populated_keys.length;
+							const d = String(thing.length).length;
+
+							const hole_cost = (thing.length - population) * 3;
+							const sparse_cost = 4 + d + population * (d + 1);
+
+							if (hole_cost > sparse_cost) {
+								str = '[' + SPARSE + ',' + thing.length;
+								for (let j = 0; j < populated_keys.length; j++) {
+									const key = populated_keys[j];
+									keys.push(`[${key}]`);
+									str += ',' + key + ',' + flatten(thing[key]);
+									keys.pop();
+								}
+								break;
+							} else {
+								mostly_dense = true;
+								str += HOLE;
+							}
+						}
+					}
+
+					str += ']';
+
+					break;
+				}
+
+				case 'Set':
+					str = '["Set"';
+
+					for (const value of thing) {
+						str += `,${flatten(value)}`;
+					}
+
+					str += ']';
+					break;
+
+				case 'Map':
+					str = '["Map"';
+
+					for (const [key, value] of thing) {
+						keys.push(
+							`.get(${is_primitive(key) ? stringify_primitive(key) : '...'})`
+						);
+						str += `,${flatten(key)},${flatten(value)}`;
+						keys.pop();
+					}
+
+					str += ']';
+					break;
+
+				case 'Int8Array':
+				case 'Uint8Array':
+				case 'Uint8ClampedArray':
+				case 'Int16Array':
+				case 'Uint16Array':
+				case 'Int32Array':
+				case 'Uint32Array':
+				case 'Float32Array':
+				case 'Float64Array':
+				case 'BigInt64Array':
+				case 'BigUint64Array': {
+					/** @type {import("./types.js").TypedArray} */
+					const typedArray = thing;
+					str = '["' + type + '",' + flatten(typedArray.buffer);
+
+					const a = thing.byteOffset;
+					const b = a + thing.byteLength;
+
+					// handle subarrays
+					if (a > 0 || b !== typedArray.buffer.byteLength) {
+						const m = +/(\d+)/.exec(type)[1] / 8;
+						str += `,${a / m},${b / m}`;
+					}
+
+					str += ']';
+					break;
+				}
+
+				case 'ArrayBuffer': {
+					/** @type {ArrayBuffer} */
+					const arraybuffer = thing;
+					const base64 = encode64(arraybuffer);
+
+					str = `["ArrayBuffer","${base64}"]`;
+					break;
+				}
+
+				case 'Temporal.Duration':
+				case 'Temporal.Instant':
+				case 'Temporal.PlainDate':
+				case 'Temporal.PlainTime':
+				case 'Temporal.PlainDateTime':
+				case 'Temporal.PlainMonthDay':
+				case 'Temporal.PlainYearMonth':
+				case 'Temporal.ZonedDateTime':
+					str = `["${type}",${stringify_string(thing.toString())}]`;
+					break;
+
+				default:
+					if (!is_plain_object(thing)) {
+						throw new DevalueError(
+							`Cannot stringify arbitrary non-POJOs`,
+							keys,
+							thing,
+							value
+						);
+					}
+
+					if (enumerable_symbols(thing).length > 0) {
+						throw new DevalueError(
+							`Cannot stringify POJOs with symbolic keys`,
+							keys,
+							thing,
+							value
+						);
+					}
+
+					if (Object.getPrototypeOf(thing) === null) {
+						str = '["null"';
+						for (const key of Object.keys(thing)) {
+							if (key === '__proto__') {
+								throw new DevalueError(
+									`Cannot stringify objects with __proto__ keys`,
+									keys,
+									thing,
+									value
+								);
+							}
+
+							keys.push(stringify_key(key));
+							str += `,${stringify_string(key)},${flatten(thing[key])}`;
+							keys.pop();
+						}
+						str += ']';
+					} else {
+						str = '{';
+						let started = false;
+						for (const key of Object.keys(thing)) {
+							if (key === '__proto__') {
+								throw new DevalueError(
+									`Cannot stringify objects with __proto__ keys`,
+									keys,
+									thing,
+									value
+								);
+							}
+
+							if (started) str += ',';
+							started = true;
+							keys.push(stringify_key(key));
+							str += `${stringify_string(key)}:${flatten(thing[key])}`;
+							keys.pop();
+						}
+						str += '}';
+					}
+			}
+		}
+
+		stringified[index] = str;
+		return index;
+	}
+
+	const index = flatten(value);
+
+	// special case — value is represented as a negative index
+	if (index < 0) return `${index}`;
+
+	return `[${stringified.join(',')}]`;
+}
+
+/**
+ * @param {any} thing
+ * @returns {string}
+ */
+function stringify_primitive(thing) {
+	const type = typeof thing;
+	if (type === 'string') return stringify_string(thing);
+	if (thing instanceof String) return stringify_string(thing.toString());
+	if (thing === void 0) return UNDEFINED.toString();
+	if (thing === 0 && 1 / thing < 0) return NEGATIVE_ZERO.toString();
+	if (type === 'bigint') return `["BigInt","${thing}"]`;
+	return String(thing);
+}
+
+const SVELTE_KIT_ASSETS = "/_svelte_kit_assets";
+const ENDPOINT_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
+const MUTATIVE_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
+const PAGE_METHODS = ["GET", "POST", "HEAD"];
+function set_nested_value(object, path_string, value) {
+  if (path_string.startsWith("n:")) {
+    path_string = path_string.slice(2);
+    value = value === "" ? void 0 : parseFloat(value);
+  } else if (path_string.startsWith("b:")) {
+    path_string = path_string.slice(2);
+    value = value === "on";
+  }
+  deep_set(object, split_path(path_string), value);
+}
+function convert_formdata(data) {
+  const result = {};
+  for (let key of data.keys()) {
+    const is_array = key.endsWith("[]");
+    let values = data.getAll(key);
+    if (is_array) key = key.slice(0, -2);
+    if (values.length > 1 && !is_array) {
+      throw new Error(`Form cannot contain duplicated keys — "${key}" has ${values.length} values`);
+    }
+    values = values.filter(
+      (entry) => typeof entry === "string" || entry.name !== "" || entry.size > 0
+    );
+    if (key.startsWith("n:")) {
+      key = key.slice(2);
+      values = values.map((v) => v === "" ? void 0 : parseFloat(
+        /** @type {string} */
+        v
+      ));
+    } else if (key.startsWith("b:")) {
+      key = key.slice(2);
+      values = values.map((v) => v === "on");
+    }
+    set_nested_value(result, key, is_array ? values : values[0]);
+  }
+  return result;
+}
+const BINARY_FORM_CONTENT_TYPE = "application/x-sveltekit-formdata";
+const BINARY_FORM_VERSION = 0;
+const HEADER_BYTES = 1 + 4 + 2;
+async function deserialize_binary_form(request) {
+  if (request.headers.get("content-type") !== BINARY_FORM_CONTENT_TYPE) {
+    const form_data = await request.formData();
+    return { data: convert_formdata(form_data), meta: {}, form_data };
+  }
+  if (!request.body) {
+    throw deserialize_error("no body");
+  }
+  const content_length = parseInt(request.headers.get("content-length") ?? "");
+  if (Number.isNaN(content_length)) {
+    throw deserialize_error("invalid Content-Length header");
+  }
+  const reader = request.body.getReader();
+  const chunks = [];
+  function get_chunk(index) {
+    if (index in chunks) return chunks[index];
+    let i = chunks.length;
+    while (i <= index) {
+      chunks[i] = reader.read().then((chunk) => chunk.value);
+      i++;
+    }
+    return chunks[index];
+  }
+  async function get_buffer(offset, length) {
+    let start_chunk;
+    let chunk_start = 0;
+    let chunk_index;
+    for (chunk_index = 0; ; chunk_index++) {
+      const chunk = await get_chunk(chunk_index);
+      if (!chunk) return null;
+      const chunk_end = chunk_start + chunk.byteLength;
+      if (offset >= chunk_start && offset < chunk_end) {
+        start_chunk = chunk;
+        break;
+      }
+      chunk_start = chunk_end;
+    }
+    if (offset + length <= chunk_start + start_chunk.byteLength) {
+      return start_chunk.subarray(offset - chunk_start, offset + length - chunk_start);
+    }
+    const chunks2 = [start_chunk.subarray(offset - chunk_start)];
+    let cursor = start_chunk.byteLength - offset + chunk_start;
+    while (cursor < length) {
+      chunk_index++;
+      let chunk = await get_chunk(chunk_index);
+      if (!chunk) return null;
+      if (chunk.byteLength > length - cursor) {
+        chunk = chunk.subarray(0, length - cursor);
+      }
+      chunks2.push(chunk);
+      cursor += chunk.byteLength;
+    }
+    const buffer = new Uint8Array(length);
+    cursor = 0;
+    for (const chunk of chunks2) {
+      buffer.set(chunk, cursor);
+      cursor += chunk.byteLength;
+    }
+    return buffer;
+  }
+  const header = await get_buffer(0, HEADER_BYTES);
+  if (!header) throw deserialize_error("too short");
+  if (header[0] !== BINARY_FORM_VERSION) {
+    throw deserialize_error(`got version ${header[0]}, expected version ${BINARY_FORM_VERSION}`);
+  }
+  const header_view = new DataView(header.buffer, header.byteOffset, header.byteLength);
+  const data_length = header_view.getUint32(1, true);
+  if (HEADER_BYTES + data_length > content_length) {
+    throw deserialize_error("data overflow");
+  }
+  const file_offsets_length = header_view.getUint16(5, true);
+  if (HEADER_BYTES + data_length + file_offsets_length > content_length) {
+    throw deserialize_error("file offset table overflow");
+  }
+  const data_buffer = await get_buffer(HEADER_BYTES, data_length);
+  if (!data_buffer) throw deserialize_error("data too short");
+  let file_offsets;
+  let files_start_offset;
+  if (file_offsets_length > 0) {
+    const file_offsets_buffer = await get_buffer(HEADER_BYTES + data_length, file_offsets_length);
+    if (!file_offsets_buffer) throw deserialize_error("file offset table too short");
+    const parsed_offsets = JSON.parse(text_decoder.decode(file_offsets_buffer));
+    if (!Array.isArray(parsed_offsets) || parsed_offsets.some((n) => typeof n !== "number" || !Number.isInteger(n) || n < 0)) {
+      throw deserialize_error("invalid file offset table");
+    }
+    file_offsets = /** @type {Array<number>} */
+    parsed_offsets;
+    files_start_offset = HEADER_BYTES + data_length + file_offsets_length;
+  }
+  const file_spans = [];
+  const [data, meta] = parse(text_decoder.decode(data_buffer), {
+    File: ([name, type, size, last_modified, index]) => {
+      if (typeof name !== "string" || typeof type !== "string" || typeof size !== "number" || typeof last_modified !== "number" || typeof index !== "number") {
+        throw deserialize_error("invalid file metadata");
+      }
+      let offset = file_offsets[index];
+      if (offset === void 0) {
+        throw deserialize_error("duplicate file offset table index");
+      }
+      file_offsets[index] = void 0;
+      offset += files_start_offset;
+      if (offset + size > content_length) {
+        throw deserialize_error("file data overflow");
+      }
+      file_spans.push({ offset, size });
+      return new Proxy(new LazyFile(name, type, size, last_modified, get_chunk, offset), {
+        getPrototypeOf() {
+          return File.prototype;
+        }
+      });
+    }
+  });
+  file_spans.sort((a, b) => a.offset - b.offset || a.size - b.size);
+  for (let i = 1; i < file_spans.length; i++) {
+    const previous = file_spans[i - 1];
+    const current = file_spans[i];
+    const previous_end = previous.offset + previous.size;
+    if (previous_end < current.offset) {
+      throw deserialize_error("gaps in file data");
+    }
+    if (previous_end > current.offset) {
+      throw deserialize_error("overlapping file data");
+    }
+  }
+  void (async () => {
+    let has_more = true;
+    while (has_more) {
+      const chunk = await get_chunk(chunks.length);
+      has_more = !!chunk;
+    }
+  })();
+  return { data, meta, form_data: null };
+}
+function deserialize_error(message) {
+  return new SvelteKitError(400, "Bad Request", `Could not deserialize binary form: ${message}`);
+}
+class LazyFile {
+  /** @type {(index: number) => Promise<Uint8Array<ArrayBuffer> | undefined>} */
+  #get_chunk;
+  /** @type {number} */
+  #offset;
+  /**
+   * @param {string} name
+   * @param {string} type
+   * @param {number} size
+   * @param {number} last_modified
+   * @param {(index: number) => Promise<Uint8Array<ArrayBuffer> | undefined>} get_chunk
+   * @param {number} offset
+   */
+  constructor(name, type, size, last_modified, get_chunk, offset) {
+    this.name = name;
+    this.type = type;
+    this.size = size;
+    this.lastModified = last_modified;
+    this.webkitRelativePath = "";
+    this.#get_chunk = get_chunk;
+    this.#offset = offset;
+    this.arrayBuffer = this.arrayBuffer.bind(this);
+    this.bytes = this.bytes.bind(this);
+    this.slice = this.slice.bind(this);
+    this.stream = this.stream.bind(this);
+    this.text = this.text.bind(this);
+  }
+  /** @type {ArrayBuffer | undefined} */
+  #buffer;
+  async arrayBuffer() {
+    this.#buffer ??= await new Response(this.stream()).arrayBuffer();
+    return this.#buffer;
+  }
+  async bytes() {
+    return new Uint8Array(await this.arrayBuffer());
+  }
+  /**
+   * @param {number=} start
+   * @param {number=} end
+   * @param {string=} contentType
+   */
+  slice(start = 0, end = this.size, contentType = this.type) {
+    if (start < 0) {
+      start = Math.max(this.size + start, 0);
+    } else {
+      start = Math.min(start, this.size);
+    }
+    if (end < 0) {
+      end = Math.max(this.size + end, 0);
+    } else {
+      end = Math.min(end, this.size);
+    }
+    const size = Math.max(end - start, 0);
+    const file = new LazyFile(
+      this.name,
+      contentType,
+      size,
+      this.lastModified,
+      this.#get_chunk,
+      this.#offset + start
+    );
+    return file;
+  }
+  stream() {
+    let cursor = 0;
+    let chunk_index = 0;
+    return new ReadableStream({
+      start: async (controller) => {
+        let chunk_start = 0;
+        let start_chunk;
+        for (chunk_index = 0; ; chunk_index++) {
+          const chunk = await this.#get_chunk(chunk_index);
+          if (!chunk) return null;
+          const chunk_end = chunk_start + chunk.byteLength;
+          if (this.#offset >= chunk_start && this.#offset < chunk_end) {
+            start_chunk = chunk;
+            break;
+          }
+          chunk_start = chunk_end;
+        }
+        if (this.#offset + this.size <= chunk_start + start_chunk.byteLength) {
+          controller.enqueue(
+            start_chunk.subarray(this.#offset - chunk_start, this.#offset + this.size - chunk_start)
+          );
+          controller.close();
+        } else {
+          controller.enqueue(start_chunk.subarray(this.#offset - chunk_start));
+          cursor = start_chunk.byteLength - this.#offset + chunk_start;
+        }
+      },
+      pull: async (controller) => {
+        chunk_index++;
+        let chunk = await this.#get_chunk(chunk_index);
+        if (!chunk) {
+          controller.error("incomplete file data");
+          controller.close();
+          return;
+        }
+        if (chunk.byteLength > this.size - cursor) {
+          chunk = chunk.subarray(0, this.size - cursor);
+        }
+        controller.enqueue(chunk);
+        cursor += chunk.byteLength;
+        if (cursor >= this.size) {
+          controller.close();
+        }
+      }
+    });
+  }
+  async text() {
+    return text_decoder.decode(await this.arrayBuffer());
+  }
+}
+const path_regex = /^[a-zA-Z_$]\w*(\.[a-zA-Z_$]\w*|\[\d+\])*$/;
+function split_path(path) {
+  if (!path_regex.test(path)) {
+    throw new Error(`Invalid path ${path}`);
+  }
+  return path.split(/\.|\[|\]/).filter(Boolean);
+}
+function check_prototype_pollution(key) {
+  if (key === "__proto__" || key === "constructor" || key === "prototype") {
+    throw new Error(
+      `Invalid key "${key}"`
+    );
+  }
+}
+function deep_set(object, keys, value) {
+  let current = object;
+  for (let i = 0; i < keys.length - 1; i += 1) {
+    const key = keys[i];
+    check_prototype_pollution(key);
+    const is_array = /^\d+$/.test(keys[i + 1]);
+    const exists = Object.hasOwn(current, key);
+    const inner = current[key];
+    if (exists && is_array !== Array.isArray(inner)) {
+      throw new Error(`Invalid array key ${keys[i + 1]}`);
+    }
+    if (!exists) {
+      current[key] = is_array ? [] : {};
+    }
+    current = current[key];
+  }
+  const final_key = keys[keys.length - 1];
+  check_prototype_pollution(final_key);
+  current[final_key] = value;
+}
+function negotiate(accept, types) {
+  const parts = [];
+  accept.split(",").forEach((str, i) => {
+    const match = /([^/ \t]+)\/([^; \t]+)[ \t]*(?:;[ \t]*q=([0-9.]+))?/.exec(str);
+    if (match) {
+      const [, type, subtype, q = "1"] = match;
+      parts.push({ type, subtype, q: +q, i });
+    }
+  });
+  parts.sort((a, b) => {
+    if (a.q !== b.q) {
+      return b.q - a.q;
+    }
+    if (a.subtype === "*" !== (b.subtype === "*")) {
+      return a.subtype === "*" ? 1 : -1;
+    }
+    if (a.type === "*" !== (b.type === "*")) {
+      return a.type === "*" ? 1 : -1;
+    }
+    return a.i - b.i;
+  });
+  let accepted;
+  let min_priority = Infinity;
+  for (const mimetype of types) {
+    const [type, subtype] = mimetype.split("/");
+    const priority = parts.findIndex(
+      (part) => (part.type === type || part.type === "*") && (part.subtype === subtype || part.subtype === "*")
+    );
+    if (priority !== -1 && priority < min_priority) {
+      accepted = mimetype;
+      min_priority = priority;
+    }
+  }
+  return accepted;
+}
+function is_content_type(request, ...types) {
+  const type = request.headers.get("content-type")?.split(";", 1)[0].trim() ?? "";
+  return types.includes(type.toLowerCase());
+}
+function is_form_content_type(request) {
+  return is_content_type(
+    request,
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain",
+    BINARY_FORM_CONTENT_TYPE
+  );
+}
+function coalesce_to_error(err) {
+  return err instanceof Error || err && /** @type {any} */
+  err.name && /** @type {any} */
+  err.message ? (
+    /** @type {Error} */
+    err
+  ) : new Error(JSON.stringify(err));
+}
+function normalize_error(error) {
+  return (
+    /** @type {import('../exports/internal/index.js').Redirect | HttpError | SvelteKitError | Error} */
+    error
+  );
+}
+function get_status(error) {
+  return error instanceof HttpError || error instanceof SvelteKitError ? error.status : 500;
+}
+function get_message(error) {
+  return error instanceof SvelteKitError ? error.text : "Internal Error";
+}
+const escape_html_attr_dict = {
+  "&": "&amp;",
+  '"': "&quot;"
+  // Svelte also escapes < because the escape function could be called inside a `noscript` there
+  // https://github.com/sveltejs/svelte/security/advisories/GHSA-8266-84wp-wv5c
+  // However, that doesn't apply in SvelteKit
+};
+const escape_html_dict = {
+  "&": "&amp;",
+  "<": "&lt;"
+};
+const surrogates = (
+  // high surrogate without paired low surrogate
+  "[\\ud800-\\udbff](?![\\udc00-\\udfff])|[\\ud800-\\udbff][\\udc00-\\udfff]|[\\udc00-\\udfff]"
+);
+const escape_html_attr_regex = new RegExp(
+  `[${Object.keys(escape_html_attr_dict).join("")}]|` + surrogates,
+  "g"
+);
+const escape_html_regex = new RegExp(
+  `[${Object.keys(escape_html_dict).join("")}]|` + surrogates,
+  "g"
+);
+function escape_html(str, is_attr) {
+  const dict = is_attr ? escape_html_attr_dict : escape_html_dict;
+  const escaped_str = str.replace(is_attr ? escape_html_attr_regex : escape_html_regex, (match) => {
+    if (match.length === 2) {
+      return match;
+    }
+    return dict[match] ?? `&#${match.charCodeAt(0)};`;
+  });
+  return escaped_str;
+}
+function method_not_allowed(mod, method) {
+  return text(`${method} method not allowed`, {
+    status: 405,
+    headers: {
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+      // "The server must generate an Allow header field in a 405 status code response"
+      allow: allowed_methods(mod).join(", ")
+    }
+  });
+}
+function allowed_methods(mod) {
+  const allowed = ENDPOINT_METHODS.filter((method) => method in mod);
+  if ("GET" in mod && !("HEAD" in mod)) {
+    allowed.push("HEAD");
+  }
+  return allowed;
+}
+function get_global_name(options) {
+  return `__sveltekit_${options.version_hash}`;
+}
+function static_error_page(options, status, message) {
+  let page = options.templates.error({ status, message: escape_html(message) });
+  return text(page, {
+    headers: { "content-type": "text/html; charset=utf-8" },
+    status
+  });
+}
+async function handle_fatal_error(event, state, options, error) {
+  error = error instanceof HttpError ? error : coalesce_to_error(error);
+  const status = get_status(error);
+  const body = await handle_error_and_jsonify(event, state, options, error);
+  const type = negotiate(event.request.headers.get("accept") || "text/html", [
+    "application/json",
+    "text/html"
+  ]);
+  if (event.isDataRequest || type === "application/json") {
+    return json(body, {
+      status
+    });
+  }
+  return static_error_page(options, status, body.message);
+}
+async function handle_error_and_jsonify(event, state, options, error) {
+  if (error instanceof HttpError) {
+    return { message: "Unknown Error", ...error.body };
+  }
+  const status = get_status(error);
+  const message = get_message(error);
+  return await with_request_store(
+    { event, state },
+    () => options.hooks.handleError({ error, event, status, message })
+  ) ?? { message };
+}
+function redirect_response(status, location) {
+  const response = new Response(void 0, {
+    status,
+    headers: { location }
+  });
+  return response;
+}
+function clarify_devalue_error(event, error) {
+  if (error.path) {
+    return `Data returned from \`load\` while rendering ${event.route.id} is not serializable: ${error.message} (${error.path}). If you need to serialize/deserialize custom types, use transport hooks: https://svelte.dev/docs/kit/hooks#Universal-hooks-transport.`;
+  }
+  if (error.path === "") {
+    return `Data returned from \`load\` while rendering ${event.route.id} is not a plain object`;
+  }
+  return error.message;
+}
+function serialize_uses(node) {
+  const uses = {};
+  if (node.uses && node.uses.dependencies.size > 0) {
+    uses.dependencies = Array.from(node.uses.dependencies);
+  }
+  if (node.uses && node.uses.search_params.size > 0) {
+    uses.search_params = Array.from(node.uses.search_params);
+  }
+  if (node.uses && node.uses.params.size > 0) {
+    uses.params = Array.from(node.uses.params);
+  }
+  if (node.uses?.parent) uses.parent = 1;
+  if (node.uses?.route) uses.route = 1;
+  if (node.uses?.url) uses.url = 1;
+  return uses;
+}
+function has_prerendered_path(manifest, pathname) {
+  return manifest._.prerendered_routes.has(pathname) || pathname.at(-1) === "/" && manifest._.prerendered_routes.has(pathname.slice(0, -1));
+}
+function format_server_error(status, error, event) {
+  const formatted_text = `
+\x1B[1;31m[${status}] ${event.request.method} ${event.url.pathname}\x1B[0m`;
+  if (status === 404) {
+    return formatted_text;
+  }
+  return `${formatted_text}
+${error.stack}`;
+}
+function get_node_type(node_id) {
+  const parts = node_id?.split("/");
+  const filename = parts?.at(-1);
+  if (!filename) return "unknown";
+  const dot_parts = filename.split(".");
+  return dot_parts.slice(0, -1).join(".");
+}
+const INVALIDATED_PARAM = "x-sveltekit-invalidated";
+const TRAILING_SLASH_PARAM = "x-sveltekit-trailing-slash";
+function stringify(data, transport) {
+  const encoders = Object.fromEntries(Object.entries(transport).map(([k, v]) => [k, v.encode]));
+  return stringify$1(data, encoders);
+}
+function parse_remote_arg(string, transport) {
+  if (!string) return void 0;
+  const json_string = text_decoder.decode(
+    // no need to add back `=` characters, atob can handle it
+    base64_decode(string.replaceAll("-", "+").replaceAll("_", "/"))
+  );
+  const decoders = Object.fromEntries(Object.entries(transport).map(([k, v]) => [k, v.decode]));
+  return parse(json_string, decoders);
+}
+function create_remote_key(id, payload) {
+  return id + "/" + payload;
+}
+
+let public_env = {};
+function set_private_env(environment) {
+}
+function set_public_env(environment) {
+  public_env = environment;
+}
+let read_implementation = null;
+function set_read_implementation(fn) {
+  read_implementation = fn;
+}
+const options = {
+  app_template_contains_nonce: false,
+  async: false,
+  csp: { "mode": "auto", "directives": { "upgrade-insecure-requests": false, "block-all-mixed-content": false }, "reportOnly": { "upgrade-insecure-requests": false, "block-all-mixed-content": false } },
+  csrf_check_origin: true,
+  csrf_trusted_origins: [],
+  embedded: false,
+  env_public_prefix: "PUBLIC_",
+  env_private_prefix: "",
+  hash_routing: false,
+  hooks: null,
+  // added lazily, via `get_hooks`
+  preload_strategy: "modulepreload",
+  root,
+  service_worker: false,
+  service_worker_options: void 0,
+  templates: {
+    app: ({ head, body, assets, nonce, env }) => '<!doctype html>\n<html>\n	<!--lang="en" -->\n	<head>\n		<meta charset="utf-8" />\n		<!-- <link rel="icon" href="' + assets + '/favicon.png" /> -->\n		<meta name="viewport" content="width=device-width, initial-scale=1" />\n		' + head + "\n	</head>\n	<body>\n		<div>" + body + "</div>\n	</body>\n</html>\n",
+    error: ({ status, message }) => '<!doctype html>\n<html lang="en">\n	<head>\n		<meta charset="utf-8" />\n		<title>' + message + `</title>
+
+		<style>
+			body {
+				--bg: white;
+				--fg: #222;
+				--divider: #ccc;
+				background: var(--bg);
+				color: var(--fg);
+				font-family:
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					Roboto,
+					Oxygen,
+					Ubuntu,
+					Cantarell,
+					'Open Sans',
+					'Helvetica Neue',
+					sans-serif;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				height: 100vh;
+				margin: 0;
+			}
+
+			.error {
+				display: flex;
+				align-items: center;
+				max-width: 32rem;
+				margin: 0 1rem;
+			}
+
+			.status {
+				font-weight: 200;
+				font-size: 3rem;
+				line-height: 1;
+				position: relative;
+				top: -0.05rem;
+			}
+
+			.message {
+				border-left: 1px solid var(--divider);
+				padding: 0 0 0 1rem;
+				margin: 0 0 0 1rem;
+				min-height: 2.5rem;
+				display: flex;
+				align-items: center;
+			}
+
+			.message h1 {
+				font-weight: 400;
+				font-size: 1em;
+				margin: 0;
+			}
+
+			@media (prefers-color-scheme: dark) {
+				body {
+					--bg: #222;
+					--fg: #ddd;
+					--divider: #666;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="error">
+			<span class="status">` + status + '</span>\n			<div class="message">\n				<h1>' + message + "</h1>\n			</div>\n		</div>\n	</body>\n</html>\n"
+  },
+  version_hash: "1arwfxx"
+};
+async function get_hooks() {
+  let handle;
+  let handleFetch;
+  let handleError;
+  let handleValidationError;
+  let init;
+  ({ handle, handleFetch, handleError, handleValidationError, init } = await import('./chunks/hooks.server-D2Xzjep5.js'));
+  let reroute;
+  let transport;
+  return {
+    handle,
+    handleFetch,
+    handleError,
+    handleValidationError,
+    init,
+    reroute,
+    transport
+  };
+}
+
+var defaultParseOptions = {
+  decodeValues: true,
+  map: false,
+  silent: false,
+  split: "auto", // auto = split strings but not arrays
+};
+
+function isForbiddenKey(key) {
+  return typeof key !== "string" || key in {};
+}
+
+function createNullObj() {
+  return Object.create(null);
+}
+
+function isNonEmptyString(str) {
+  return typeof str === "string" && !!str.trim();
+}
+
+function parseString(setCookieValue, options) {
+  var parts = setCookieValue.split(";").filter(isNonEmptyString);
+
+  var nameValuePairStr = parts.shift();
+  var parsed = parseNameValuePair(nameValuePairStr);
+  var name = parsed.name;
+  var value = parsed.value;
+
+  options = options
+    ? Object.assign({}, defaultParseOptions, options)
+    : defaultParseOptions;
+
+  if (isForbiddenKey(name)) {
+    return null;
+  }
+
+  try {
+    value = options.decodeValues ? decodeURIComponent(value) : value; // decode cookie value
+  } catch (e) {
+    console.error(
+      "set-cookie-parser: failed to decode cookie value. Set options.decodeValues=false to disable decoding.",
+      e
+    );
+  }
+
+  var cookie = createNullObj();
+  cookie.name = name;
+  cookie.value = value;
+
+  parts.forEach(function (part) {
+    var sides = part.split("=");
+    var key = sides.shift().trimLeft().toLowerCase();
+    if (isForbiddenKey(key)) {
+      return;
+    }
+    var value = sides.join("=");
+    if (key === "expires") {
+      cookie.expires = new Date(value);
+    } else if (key === "max-age") {
+      var n = parseInt(value, 10);
+      if (!Number.isNaN(n)) cookie.maxAge = n;
+    } else if (key === "secure") {
+      cookie.secure = true;
+    } else if (key === "httponly") {
+      cookie.httpOnly = true;
+    } else if (key === "samesite") {
+      cookie.sameSite = value;
+    } else if (key === "partitioned") {
+      cookie.partitioned = true;
+    } else if (key) {
+      cookie[key] = value;
+    }
+  });
+
+  return cookie;
+}
+
+function parseNameValuePair(nameValuePairStr) {
+  // Parses name-value-pair according to rfc6265bis draft
+
+  var name = "";
+  var value = "";
+  var nameValueArr = nameValuePairStr.split("=");
+  if (nameValueArr.length > 1) {
+    name = nameValueArr.shift();
+    value = nameValueArr.join("="); // everything after the first =, joined by a "=" if there was more than one part
+  } else {
+    value = nameValuePairStr;
+  }
+
+  return { name: name, value: value };
+}
+
+function parseSetCookie(input, options) {
+  options = options
+    ? Object.assign({}, defaultParseOptions, options)
+    : defaultParseOptions;
+
+  if (!input) {
+    if (!options.map) {
+      return [];
+    } else {
+      return createNullObj();
+    }
+  }
+
+  if (input.headers) {
+    if (typeof input.headers.getSetCookie === "function") {
+      // for fetch responses - they combine headers of the same type in the headers array,
+      // but getSetCookie returns an uncombined array
+      input = input.headers.getSetCookie();
+    } else if (input.headers["set-cookie"]) {
+      // fast-path for node.js (which automatically normalizes header names to lower-case)
+      input = input.headers["set-cookie"];
+    } else {
+      // slow-path for other environments - see #25
+      var sch =
+        input.headers[
+          Object.keys(input.headers).find(function (key) {
+            return key.toLowerCase() === "set-cookie";
+          })
+        ];
+      // warn if called on a request-like object with a cookie header rather than a set-cookie header - see #34, 36
+      if (!sch && input.headers.cookie && !options.silent) {
+        console.warn(
+          "Warning: set-cookie-parser appears to have been called on a request object. It is designed to parse Set-Cookie headers from responses, not Cookie headers from requests. Set the option {silent: true} to suppress this warning."
+        );
+      }
+      input = sch;
+    }
+  }
+
+  var split = options.split;
+  var isArray = Array.isArray(input);
+
+  if (split === "auto") {
+    split = !isArray;
+  }
+
+  if (!isArray) {
+    input = [input];
+  }
+
+  input = input.filter(isNonEmptyString);
+
+  if (split) {
+    input = input.map(splitCookiesString).flat();
+  }
+
+  if (!options.map) {
+    return input
+      .map(function (str) {
+        return parseString(str, options);
+      })
+      .filter(Boolean);
+  } else {
+    var cookies = createNullObj();
+    return input.reduce(function (cookies, str) {
+      var cookie = parseString(str, options);
+      if (cookie && !isForbiddenKey(cookie.name)) {
+        cookies[cookie.name] = cookie;
+      }
+      return cookies;
+    }, cookies);
+  }
+}
+
+/*
+  Set-Cookie header field-values are sometimes comma joined in one string. This splits them without choking on commas
+  that are within a single set-cookie field-value, such as in the Expires portion.
+
+  This is uncommon, but explicitly allowed - see https://tools.ietf.org/html/rfc2616#section-4.2
+  Node.js does this for every header *except* set-cookie - see https://github.com/nodejs/node/blob/d5e363b77ebaf1caf67cd7528224b651c86815c1/lib/_http_incoming.js#L128
+  React Native's fetch does this for *every* header, including set-cookie.
+
+  Based on: https://github.com/google/j2objc/commit/16820fdbc8f76ca0c33472810ce0cb03d20efe25
+  Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
+*/
+function splitCookiesString(cookiesString) {
+  if (Array.isArray(cookiesString)) {
+    return cookiesString;
+  }
+  if (typeof cookiesString !== "string") {
+    return [];
+  }
+
+  var cookiesStrings = [];
+  var pos = 0;
+  var start;
+  var ch;
+  var lastComma;
+  var nextStart;
+  var cookiesSeparatorFound;
+
+  function skipWhitespace() {
+    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
+      pos += 1;
+    }
+    return pos < cookiesString.length;
+  }
+
+  function notSpecialChar() {
+    ch = cookiesString.charAt(pos);
+
+    return ch !== "=" && ch !== ";" && ch !== ",";
+  }
+
+  while (pos < cookiesString.length) {
+    start = pos;
+    cookiesSeparatorFound = false;
+
+    while (skipWhitespace()) {
+      ch = cookiesString.charAt(pos);
+      if (ch === ",") {
+        // ',' is a cookie separator if we have later first '=', not ';' or ','
+        lastComma = pos;
+        pos += 1;
+
+        skipWhitespace();
+        nextStart = pos;
+
+        while (pos < cookiesString.length && notSpecialChar()) {
+          pos += 1;
+        }
+
+        // currently special character
+        if (pos < cookiesString.length && cookiesString.charAt(pos) === "=") {
+          // we found cookies separator
+          cookiesSeparatorFound = true;
+          // pos is inside the next cookie, so back up and return it.
+          pos = nextStart;
+          cookiesStrings.push(cookiesString.substring(start, lastComma));
+          start = pos;
+        } else {
+          // in param ',' or param separator ';',
+          // we continue from that comma
+          pos = lastComma + 1;
+        }
+      } else {
+        pos += 1;
+      }
+    }
+
+    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
+      cookiesStrings.push(cookiesString.substring(start, cookiesString.length));
+    }
+  }
+
+  return cookiesStrings;
+}
+
+// named export for CJS
+parseSetCookie.parseSetCookie = parseSetCookie;
+// for backwards compatibility
+parseSetCookie.parse = parseSetCookie;
+parseSetCookie.parseString = parseString;
+parseSetCookie.splitCookiesString = splitCookiesString;
+
 function with_resolvers() {
   let resolve2;
   let reject;
@@ -378,30 +2003,22 @@ async function call_action(event, event_state, actions) {
     }
   });
 }
-function validate_action_return(data) {
-  if (data instanceof Redirect) {
-    throw new Error("Cannot `return redirect(...)` — use `redirect(...)` instead");
-  }
-  if (data instanceof HttpError) {
-    throw new Error("Cannot `return error(...)` — use `error(...)` or `return fail(...)` instead");
-  }
-}
 function uneval_action_response(data, route_id, transport) {
   const replacer = (thing) => {
     for (const key2 in transport) {
       const encoded = transport[key2].encode(thing);
       if (encoded) {
-        return `app.decode('${key2}', ${devalue.uneval(encoded, replacer)})`;
+        return `app.decode('${key2}', ${uneval(encoded, replacer)})`;
       }
     }
   };
-  return try_serialize(data, (value) => devalue.uneval(value, replacer), route_id);
+  return try_serialize(data, (value) => uneval(value, replacer), route_id);
 }
 function stringify_action_response(data, route_id, transport) {
   const encoders = Object.fromEntries(
     Object.entries(transport).map(([key2, value]) => [key2, value.encode])
   );
-  return try_serialize(data, (value) => devalue.stringify(value, encoders), route_id);
+  return try_serialize(data, (value) => stringify$1(value, encoders), route_id);
 }
 function try_serialize(data, fn, route_id) {
   try {
@@ -476,7 +2093,7 @@ function server_data_serializer(event, event_state, options2) {
           async ({ data, error: error2 }) => {
             let str;
             try {
-              str = devalue.uneval(error2 ? [, error2] : [data], replacer);
+              str = uneval(error2 ? [, error2] : [data], replacer);
             } catch {
               error2 = await handle_error_and_jsonify(
                 event,
@@ -484,7 +2101,7 @@ function server_data_serializer(event, event_state, options2) {
                 options2,
                 new Error(`Failed to serialize promise while rendering ${event.route.id}`)
               );
-              str = devalue.uneval([, error2], replacer);
+              str = uneval([, error2], replacer);
             }
             return {
               index,
@@ -498,7 +2115,7 @@ function server_data_serializer(event, event_state, options2) {
         for (const key2 in options2.hooks.transport) {
           const encoded = options2.hooks.transport[key2].encode(thing);
           if (encoded) {
-            return `app.decode('${key2}', ${devalue.uneval(encoded, replacer)})`;
+            return `app.decode('${key2}', ${uneval(encoded, replacer)})`;
           }
         }
       }
@@ -520,7 +2137,7 @@ function server_data_serializer(event, event_state, options2) {
         }
         const payload = { type: "data", data: node.data, uses: serialize_uses(node) };
         if (node.slash) payload.slash = node.slash;
-        strings[i] = devalue.uneval(payload, get_replacer(i));
+        strings[i] = uneval(payload, get_replacer(i));
       } catch (e) {
         e.path = e.path.slice(1);
         throw new Error(clarify_devalue_error(
@@ -577,7 +2194,7 @@ function server_data_serializer_json(event, event_state, options2) {
         async (value) => {
           let str;
           try {
-            str = devalue.stringify(value, reducers);
+            str = stringify$1(value, reducers);
           } catch {
             const error2 = await handle_error_and_jsonify(
               event,
@@ -586,7 +2203,7 @@ function server_data_serializer_json(event, event_state, options2) {
               new Error(`Failed to serialize promise while rendering ${event.route.id}`)
             );
             key2 = "error";
-            str = devalue.stringify(error2, reducers);
+            str = stringify$1(error2, reducers);
           }
           return `{"type":"chunk","id":${id},"${key2}":${str}}
 `;
@@ -611,7 +2228,7 @@ function server_data_serializer_json(event, event_state, options2) {
           strings[i] = JSON.stringify(node);
           return;
         }
-        strings[i] = `{"type":"data","data":${devalue.stringify(node.data, reducers)},"uses":${JSON.stringify(
+        strings[i] = `{"type":"data","data":${stringify$1(node.data, reducers)},"uses":${JSON.stringify(
           serialize_uses(node)
         )}${node.slash ? `,"slash":${JSON.stringify(node.slash)}` : ""}}`;
       } catch (e) {
@@ -1593,7 +3210,6 @@ async function render_response({
       ]),
       csp: csp.script_needs_nonce ? { nonce: csp.nonce } : { hash: csp.script_needs_hash }
     };
-    const fetch2 = globalThis.fetch;
     try {
       if (dev) ;
       event_state.allows_commands = false;
@@ -1764,7 +3380,7 @@ async function render_response({
         );
       }
       if (error2) {
-        serialized.error = devalue.uneval(error2);
+        serialized.error = uneval(error2);
       }
       const hydrate = [
         `node_ids: [${branch.map(({ node }) => node.index).join(", ")}]`,
@@ -1781,10 +3397,10 @@ async function render_response({
             "\n",
             "\n							"
           );
-          hydrate.push(`params: ${devalue.uneval(event.params)}`, `server_route: ${stringified}`);
+          hydrate.push(`params: ${uneval(event.params)}`, `server_route: ${stringified}`);
         }
       } else if (options2.embedded) {
-        hydrate.push(`params: ${devalue.uneval(event.params)}`, `route: ${s(event.route)}`);
+        hydrate.push(`params: ${uneval(event.params)}`, `route: ${s(event.route)}`);
       }
       const indent = "	".repeat(load_env_eagerly ? 7 : 6);
       args.push(`{
@@ -1806,11 +3422,11 @@ ${indent}}`);
         for (const key2 in options2.hooks.transport) {
           const encoded = options2.hooks.transport[key2].encode(thing);
           if (encoded) {
-            return `app.decode('${key2}', ${devalue.uneval(encoded, replacer)})`;
+            return `app.decode('${key2}', ${uneval(encoded, replacer)})`;
           }
         }
       };
-      serialized_remote_data = `${global}.data = ${devalue.uneval(remote, replacer)};
+      serialized_remote_data = `${global}.data = ${uneval(remote, replacer)};
 
 						`;
     }
@@ -2817,7 +4433,7 @@ function generate_cookie_key(domain, path, name) {
 }
 function get_cookies(request, url) {
   const header = request.headers.get("cookie") ?? "";
-  const initial_cookies = parse(header, { decode: (value) => value });
+  const initial_cookies = cookieExports.parse(header, { decode: (value) => value });
   let normalized_url;
   const new_cookies = /* @__PURE__ */ new Map();
   const defaults = {
@@ -2841,7 +4457,7 @@ function get_cookies(request, url) {
       if (best_match) {
         return best_match.options.maxAge === 0 ? void 0 : best_match.value;
       }
-      const req_cookies = parse(header, { decode: opts?.decode });
+      const req_cookies = cookieExports.parse(header, { decode: opts?.decode });
       const cookie = req_cookies[name];
       return cookie;
     },
@@ -2849,7 +4465,7 @@ function get_cookies(request, url) {
      * @param {import('cookie').CookieParseOptions} [opts]
      */
     getAll(opts) {
-      const cookies2 = parse(header, { decode: opts?.decode });
+      const cookies2 = cookieExports.parse(header, { decode: opts?.decode });
       const lookup = /* @__PURE__ */ new Map();
       for (const c of new_cookies.values()) {
         if (domain_matches(url.hostname, c.options.domain) && path_matches(url.pathname, c.options.path)) {
@@ -2903,7 +4519,7 @@ function get_cookies(request, url) {
         }
         path = resolve(normalized_url, path);
       }
-      return serialize(name, value, { ...defaults, ...options2, path });
+      return cookieExports.serialize(name, value, { ...defaults, ...options2, path });
     }
   };
   function get_cookie_header(destination, header2) {
@@ -2918,7 +4534,7 @@ function get_cookies(request, url) {
       combined_cookies[cookie.name] = encoder(cookie.value);
     }
     if (header2) {
-      const parsed = parse(header2, { decode: (value) => value });
+      const parsed = cookieExports.parse(header2, { decode: (value) => value });
       for (const name in parsed) {
         combined_cookies[name] = parsed[name];
       }
@@ -2960,10 +4576,10 @@ function path_matches(path, constraint) {
 function add_cookies_to_headers(headers2, cookies) {
   for (const new_cookie of cookies) {
     const { name, value, options: options2 } = new_cookie;
-    headers2.append("set-cookie", serialize(name, value, options2));
+    headers2.append("set-cookie", cookieExports.serialize(name, value, options2));
     if (options2.path.endsWith(".html")) {
       const path = add_data_suffix(options2.path);
-      headers2.append("set-cookie", serialize(name, value, { ...options2, path }));
+      headers2.append("set-cookie", cookieExports.serialize(name, value, { ...options2, path }));
     }
   }
 }
@@ -3046,8 +4662,8 @@ function create_fetch({ event, options: options2, manifest, state, get_cookie_he
         const response = await internal_fetch(request, options2, manifest, state);
         const set_cookie = response.headers.get("set-cookie");
         if (set_cookie) {
-          for (const str of set_cookie_parser.splitCookiesString(set_cookie)) {
-            const { name, value, ...options3 } = set_cookie_parser.parseString(str, {
+          for (const str of splitCookiesString(set_cookie)) {
+            const { name, value, ...options3 } = parseString(str, {
               decodeValues: false
             });
             const path = options3.path ?? (url.pathname.split("/").slice(0, -1).join("/") || "/");
@@ -3126,7 +4742,6 @@ const default_filter = () => false;
 const default_preload = ({ type }) => type === "js" || type === "css";
 const page_methods = /* @__PURE__ */ new Set(["GET", "HEAD", "POST"]);
 const allowed_page_methods = /* @__PURE__ */ new Set(["GET", "HEAD", "OPTIONS"]);
-let warned_on_devtools_json_request = false;
 const respond = propagate_context(internal_respond);
 async function internal_respond(request, options2, manifest, state) {
   const url = new URL(request.url);
@@ -3745,6 +5360,6 @@ class Server {
     });
   }
 }
-export {
-  Server
-};
+
+export { Server };
+//# sourceMappingURL=index.js.map
