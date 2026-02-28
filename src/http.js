@@ -183,7 +183,17 @@ module.exports = async client => {
 		})); // register route
 	});
 
-	const { handler } = await import('@discord-tickets/settings/build/handler.js');
+	// Prefer a vendored dashboard handler at `src/dashboard/build/handler.js` if present,
+	// otherwise fall back to the installed package in node_modules.
+	let handlerModule;
+	try {
+		handlerModule = await import(path.join(process.cwd(), 'src', 'dashboard', 'build', 'handler.js'));
+		client.log.info('Using vendored @discord-tickets/settings handler from src/dashboard');
+	} catch (err) {
+		handlerModule = await import('@discord-tickets/settings/build/handler.js');
+		client.log.info('Using @discord-tickets/settings handler from node_modules');
+	}
+	const { handler } = handlerModule;
 
 	// https://stackoverflow.com/questions/72317071/how-to-set-up-fastify-correctly-so-that-sveltekit-works-fine
 	fastify.all('/*', {}, (req, res) => handler(req.raw, res.raw, () => {
