@@ -37,8 +37,17 @@
     el.innerHTML = 'Loading analytics...';
     try {
       const data = await api(`/api/admin/guilds/${guildId}/analytics`);
+      // Helper: ms -> human
+      const msToTime = ms => {
+        if (!ms && ms !== 0) return 'N/A';
+        const s = Math.round(ms / 1000);
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return m ? `${m}m ${sec}s` : `${sec}s`;
+      };
+
       // Summary
-      const summaryHtml = `<div class="grid"><div class="card"><h3>Summary</h3><div class="item">Total tickets: <b>${data.summary.total}</b></div><div class="item">Open: ${data.summary.open} Closed: ${data.summary.closed}</div></div>`;
+      const summaryHtml = `<div class="grid"><div class="card"><h3>Summary</h3><div class="item">Total tickets: <b>${data.summary.total}</b></div><div class="item">Open: ${data.summary.open} Closed: ${data.summary.closed}</div><div class="item">Avg response: <b>${msToTime(data.summary.avgResponseTimeMs)}</b></div><div class="item">Avg resolution: <b>${msToTime(data.summary.avgResolutionTimeMs)}</b></div></div>`;
       // Priority breakdown
       const priority = Object.entries(data.priorityBreakdown || {}).map(([k,v])=>`<div class="item">${k}: <b>${v}</b></div>`).join('');
       const priHtml = `<div class="card"><h3>Priority</h3>${priority}</div>`;
@@ -55,7 +64,11 @@
       } else spark += '<div class="small">No data</div>';
       spark += '</div>';
 
-      el.innerHTML = `<div class="grid">${summaryHtml}${priHtml}${spark}</div>`;
+      // Assignees
+      const assignees = (data.assigneeStats || []).map(a => `<div class="item">${escapeHtml(String(a.userId||'unknown'))} — closed: <b>${a.closed||0}</b> claimed: ${a.claimed||0} avg res: ${msToTime(a.avgResolutionTimeMs)}</div>`).join('');
+      const assHtml = `<div class="card"><h3>Assignees</h3>${assignees || '<div class="small">No assignee data</div>'}</div>`;
+
+      el.innerHTML = `<div class="grid">${summaryHtml}${priHtml}${spark}${assHtml}</div>`;
     } catch (err) { el.innerHTML = `<div class="item small">Error: ${err.message}</div>`; }
   }
 
@@ -128,11 +141,20 @@
     const cat = await api(`/api/admin/guilds/${guildId}/categories/${categoryId}`);
     const el = document.getElementById('settings');
     const form = document.createElement('div');
+    // load all categories to populate backup selector
+    let allCats = [];
+    try { allCats = await api(`/api/admin/guilds/${guildId}/categories`); } catch (e) { allCats = []; }
+
+    const backupOptions = ['<option value="">(none)</option>'].concat(allCats
+      .filter(c => String(c.id) !== String(categoryId))
+      .map(c => `<option value="${c.id}" ${cat.backupCategoryId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`));
+
     form.innerHTML = `<h4>Edit ${cat.name}</h4>
       <label>Name<br><input id="cat_name" value="${escapeHtml(cat.name||'')}"/></label>
       <label>Channel name template<br><input id="cat_channelName" value="${escapeHtml(cat.channelName||'')}"/></label>
       <label>Auto assign?<br><input id="cat_autoAssign" type="checkbox" ${cat.autoAssign? 'checked':''}/></label>
       <label>Channel mode<br><select id="cat_channelMode"><option${cat.channelMode==='CHANNEL'?' selected':''}>CHANNEL</option><option${cat.channelMode==='THREAD'?' selected':''}>THREAD</option><option${cat.channelMode==='FORUM'?' selected':''}>FORUM</option></select></label>
+      <label>Backup category<br><select id="cat_backup">${backupOptions.join('')}</select></label>
       <div><button id="saveCat">Save</button> <button id="closeCat">Close</button></div>`;
     el.appendChild(form);
     document.getElementById('closeCat').addEventListener('click', () => form.remove());
@@ -142,6 +164,7 @@
         channelName: document.getElementById('cat_channelName').value,
         autoAssign: document.getElementById('cat_autoAssign').checked,
         channelMode: document.getElementById('cat_channelMode').value,
+        backupCategoryId: document.getElementById('cat_backup').value ? Number(document.getElementById('cat_backup').value) : null,
       };
       try {
         await fetch(`/api/admin/guilds/${guildId}/categories/${categoryId}`, { method: 'PATCH', headers: {'content-type':'application/json'}, body: JSON.stringify(payload), credentials: 'same-origin' });

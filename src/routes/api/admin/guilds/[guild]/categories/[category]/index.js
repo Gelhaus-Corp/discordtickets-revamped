@@ -76,6 +76,7 @@ module.exports.patch = fastify => ({
 		const data = req.body;
 
 		const select = {
+			backupCategoryId: true,
 			channelMode: true,
 			autoAssign: true,
 			channelName: true,
@@ -113,6 +114,7 @@ module.exports.patch = fastify => ({
 			requiredRoles: true,
 			staffRoles: true,
 			totalLimit: true,
+			backupCategoryId: true,
 		};
 
 		const original = req.params.category && await client.prisma.category.findUnique({
