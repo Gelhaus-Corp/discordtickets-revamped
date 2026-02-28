@@ -1,4 +1,4 @@
-import { d as attr, m as bind_props, f as ensure_array_like, a as attr_class, l as stringify, g as getContext } from "../../../../../../chunks/index2.js";
+import { d as attr, m as bind_props, f as ensure_array_like, a as attr_class, l as stringify, g as getContext, e as derived } from "../../../../../../chunks/index2.js";
 import { a as run } from "../../../../../../chunks/root.js";
 import ms from "ms";
 import emoji from "emoji-name-map";
@@ -193,7 +193,13 @@ function _page($$renderer, $$props) {
       { value: "FORUM", label: "Forum Channel" }
     ];
     questionsState.questions = category.questions;
-    channels = channels.filter((c) => c.type === 4);
+    let filteredChannels = derived(() => {
+      if (category.channelMode === "FORUM") {
+        return channels.filter((c) => c.type === 15);
+      } else {
+        return channels.filter((c) => c.type === 4);
+      }
+    });
     roles = roles.filter((r) => r.name !== "@everyone").sort((a, b) => b.rawPosition - a.rawPosition);
     roles.forEach((r) => {
       r._hexColor = r.color > 0 ? `#${r.color.toString(16).padStart(6, "0")}` : null;
@@ -232,9 +238,17 @@ function _page($$renderer, $$props) {
     }
     $$renderer2.push(`<!--]--></div> <div><label for="claiming" class="font-medium">Claiming <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Allow staff to claim tickets?"></i> <input type="checkbox" id="claiming" name="claiming" class="form-checkbox"${attr("checked", category.claiming, true)}/></label></div> <div><label class="font-medium">Cooldown <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="How long should members have to wait before creating another ticket?"></i> <input type="text" class="input form-input"${attr("value", category.cooldown)}/></label></div> <div><label class="font-medium">Description `);
     Required($$renderer2);
-    $$renderer2.push(`<!----> <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="What is this category for?"></i> <input type="text" class="input form-input" required=""${attr("value", category.description)}/></label></div> <div><label class="font-medium">Discord category `);
+    $$renderer2.push(`<!----> <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="What is this category for?"></i> <input type="text" class="input form-input" required=""${attr("value", category.description)}/></label></div> <div><label class="font-medium">`);
+    if (category.channelMode === "FORUM") {
+      $$renderer2.push("<!--[-->");
+      $$renderer2.push(`Discord forum channel`);
+    } else {
+      $$renderer2.push("<!--[!-->");
+      $$renderer2.push(`Discord category`);
+    }
+    $$renderer2.push(`<!--]--> `);
     Required($$renderer2);
-    $$renderer2.push(`<!----> <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Which category channel should ticket channels be created under?"></i> `);
+    $$renderer2.push(`<!----> <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"${attr("title", category.channelMode === "FORUM" ? "Which forum channel should tickets be created in?" : "Which category channel should ticket channels be created under?")}></i> `);
     $$renderer2.select(
       {
         class: "input form-multiselect",
@@ -245,14 +259,14 @@ function _page($$renderer, $$props) {
         if (!category.discordCategory || category.discordCategory === "new") {
           $$renderer3.push("<!--[-->");
           $$renderer3.option({ value: "new" }, ($$renderer4) => {
-            $$renderer4.push(`Create a new category`);
+            $$renderer4.push(`Create a new ${escape_html(category.channelMode === "FORUM" ? "forum" : "category")}`);
           });
           $$renderer3.push(` <hr/>`);
         } else {
           $$renderer3.push("<!--[!-->");
         }
         $$renderer3.push(`<!--]--><!--[-->`);
-        const each_array = ensure_array_like(channels);
+        const each_array = ensure_array_like(filteredChannels());
         for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
           let channel = each_array[$$index];
           $$renderer3.option({ value: channel.id, class: "p-1" }, ($$renderer4) => {

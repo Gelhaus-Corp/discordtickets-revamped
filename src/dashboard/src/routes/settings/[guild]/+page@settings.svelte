@@ -101,6 +101,13 @@
 				<i class="fas fa-tags mb-4 text-4xl"></i>
 				<p class="text-center text-lg font-semibold">Tags</p>
 			</a>
+			<a
+				href={guild.id + '/transcripts'}
+				class="link rounded-xl bg-gray-100 p-4 shadow-sm dark:bg-slate-800"
+			>
+				<i class="fas fa-file-lines mb-4 text-4xl"></i>
+				<p class="text-center text-lg font-semibold">Transcripts</p>
+			</a>
 			<button
 				class="rounded-xl bg-red-300 p-4 shadow-sm transition duration-300 hover:bg-red-500 dark:bg-red-500/20 dark:hover:bg-red-500"
 				onclick={() => modals.open(DataModal, { guild })}

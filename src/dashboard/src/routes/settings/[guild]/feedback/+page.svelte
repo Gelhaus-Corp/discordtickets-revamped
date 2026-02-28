@@ -20,10 +20,6 @@
 		};
 		return colors[rating] || 'bg-gray-100 dark:bg-gray-900/30';
 	};
-
-	const getCategoryName = (categoryId) => {
-		return data.categories.find(c => c.id === categoryId)?.name || 'Unknown';
-	};
 </script>
 
 <h1 class="m-4 text-center text-4xl font-bold">Feedback & Analytics</h1>
@@ -99,8 +95,7 @@
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700 mb-8">
 			<h2 class="mb-6 text-2xl font-bold">Feedback by Category</h2>
 			<div class="space-y-4">
-				{#each Object.entries(data.feedbackByCategory) as [categoryId, categoryFeedback]}
-					{@const categoryName = getCategoryName(categoryId)}
+				{#each Object.entries(data.feedbackByCategory) as [categoryName, categoryFeedback]}
 					{@const avgRating = (categoryFeedback.reduce((sum, f) => sum + (f.rating || 0), 0) / categoryFeedback.length).toFixed(2)}
 					<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
 						<div class="flex items-center justify-between mb-3">
@@ -146,10 +141,9 @@
 					<div class={`rounded-lg p-4 ${getRatingColor(feedback.rating)}`}>
 						<div class="flex items-start justify-between mb-2">
 							<div>
-								<div class="font-semibold">{getCategoryName(feedback.categoryId)}</div>
+								<div class="font-semibold">{feedback.categoryName || 'Unknown'}</div>
 								<div class="text-sm text-gray-600 dark:text-slate-400">
-									Ticket #
-									{feedback.ticketId || 'N/A'}
+									Ticket #{feedback.ticketNumber || 'N/A'}
 								</div>
 							</div>
 							<div class="flex gap-1">
@@ -189,5 +183,7 @@
 			class="inline-block rounded-lg bg-blurple px-6 py-2 text-white transition duration-300 hover:bg-blurple/80"
 		>
 			View Full Feedback Portal
-			<i class="fa-solid fa-arrow-right-long ml-2"></i>		</a>
+			<i class="fa-solid fa-arrow-right-long ml-2"></i>
+		</a>
 	</div>
+</div>
