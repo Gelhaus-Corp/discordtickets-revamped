@@ -194,18 +194,21 @@ module.exports = async client => {
 			handlerModule = await import(pathToFileURL(localHandlerPath).href);
 			client.log.info('Using vendored @discord-tickets/settings handler from src/dashboard');
 		} catch (err) {
-			client.log.warn('Failed to import vendored dashboard handler, falling back to node_modules', err && err.stack ? err.stack : err);
+			client.log.error('Failed to import vendored dashboard handler', err && err.stack ? err.stack : err);
 		}
 	}
-	if (!handlerModule) {
-		handlerModule = await import('@discord-tickets/settings/build/handler.js');
-		client.log.info('Using @discord-tickets/settings handler from node_modules');
-	}
-	const { handler } = handlerModule;
 
-	// https://stackoverflow.com/questions/72317071/how-to-set-up-fastify-correctly-so-that-sveltekit-works-fine
-	fastify.all('/*', {}, (req, res) => handler(req.raw, res.raw, () => {
-	}));
+	// Do NOT fall back to the node_modules copy. If the vendored handler is
+	// missing, log a clear message and do not register the dashboard route.
+	if (handlerModule && handlerModule.handler) {
+		const { handler } = handlerModule;
+
+		// https://stackoverflow.com/questions/72317071/how-to-set-up-fastify-correctly-so-that-sveltekit-works-fine
+		fastify.all('/*', {}, (req, res) => handler(req.raw, res.raw, () => {
+		}));
+	} else {
+		client.log.warn('Vendored dashboard handler not found; dashboard will not be served. The @discord-tickets/settings package will no longer be used.');
+	}
 
 	// start the fastify server
 	fastify.listen({
