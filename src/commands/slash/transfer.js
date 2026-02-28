@@ -26,7 +26,7 @@ module.exports = class TransferSlashCommand extends SlashCommand {
 				},
 			].map(option => {
 				option.descriptionLocalizations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.description`);
-				option.description = option.descriptionLocalizations['en-GB'];
+				option.description = option.descriptionLocalizations['en-GB'] || client.i18n.getMessage(null, `commands.slash.${name}.options.${option.name}.description`) || '';
 				option.nameLocalizations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.name`);
 				return option;
 			}),

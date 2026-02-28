@@ -26,9 +26,9 @@ module.exports = class RenameSlashCommand extends SlashCommand {
 					type: ApplicationCommandOptionType.String,
 				},
 			].map(option => {
-				option.descriptionLocalisations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.description`);
-				option.description = option.descriptionLocalisations['en-GB'];
-				option.nameLocalisations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.name`);
+				option.descriptionLocalizations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.description`);
+				option.description = option.descriptionLocalizations['en-GB'] || client.i18n.getMessage(null, `commands.slash.${name}.options.${option.name}.description`) || '';
+				option.nameLocalizations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.name`);
 				return option;
 			}),
 		});
