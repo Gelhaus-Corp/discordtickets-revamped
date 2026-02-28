@@ -196,6 +196,8 @@ function _page($$renderer, $$props) {
     let filteredChannels = derived(() => {
       if (category.channelMode === "FORUM") {
         return channels.filter((c) => c.type === 15);
+      } else if (category.channelMode === "THREAD") {
+        return channels.filter((c) => c.type === 0);
       } else {
         return channels.filter((c) => c.type === 4);
       }
@@ -293,39 +295,51 @@ function _page($$renderer, $$props) {
       }
       $$renderer3.push(`<!--]-->`);
     });
-    $$renderer2.push(`</label></div> <div><label class="font-medium">Backup Category <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Alternative category to use when primary is full"></i> `);
-    $$renderer2.select(
-      {
-        class: "input form-multiselect",
-        value: category.backupCategoryId
-      },
-      ($$renderer3) => {
-        $$renderer3.option({ value: null, class: "p-1" }, ($$renderer4) => {
-          $$renderer4.push(`None`);
-        });
-        $$renderer3.push(`<hr/><!--[-->`);
-        const each_array_2 = ensure_array_like(categories);
-        for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
-          let cat = each_array_2[$$index_2];
-          if (cat.id !== category.id) {
-            $$renderer3.push("<!--[-->");
-            $$renderer3.option({ value: cat.id, class: "p-1" }, ($$renderer4) => {
-              $$renderer4.push(`${escape_html(emoji.get(cat.emoji) ?? "")} ${escape_html(cat.name)}`);
-            });
-          } else {
-            $$renderer3.push("<!--[!-->");
+    $$renderer2.push(`</label></div> <div>`);
+    if (category.channelMode === "CHANNEL") {
+      $$renderer2.push("<!--[-->");
+      $$renderer2.push(`<label class="font-medium">Backup Category <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Alternative category to use when primary is full"></i> `);
+      $$renderer2.select(
+        {
+          class: "input form-multiselect",
+          value: category.backupCategoryId
+        },
+        ($$renderer3) => {
+          $$renderer3.option({ value: null, class: "p-1" }, ($$renderer4) => {
+            $$renderer4.push(`None`);
+          });
+          $$renderer3.push(`<hr/><!--[-->`);
+          const each_array_2 = ensure_array_like(categories);
+          for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+            let cat = each_array_2[$$index_2];
+            if (cat.id !== category.id) {
+              $$renderer3.push("<!--[-->");
+              $$renderer3.option({ value: cat.id, class: "p-1" }, ($$renderer4) => {
+                $$renderer4.push(`${escape_html(emoji.get(cat.emoji) ?? "")} ${escape_html(cat.name)}`);
+              });
+            } else {
+              $$renderer3.push("<!--[!-->");
+            }
+            $$renderer3.push(`<!--]-->`);
           }
           $$renderer3.push(`<!--]-->`);
-        }
-        $$renderer3.push(`<!--]-->`);
-      },
-      void 0,
-      void 0,
-      void 0,
-      void 0,
-      true
-    );
-    $$renderer2.push(`</label></div> <div><label class="font-medium">Emoji `);
+        },
+        void 0,
+        void 0,
+        void 0,
+        void 0,
+        true
+      );
+      $$renderer2.push(`</label>`);
+    } else {
+      $$renderer2.push("<!--[!-->");
+      $$renderer2.push(`<label class="font-medium opacity-50 cursor-not-allowed">Backup Category <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Not available for Thread or Forum modes"></i> <select class="input form-multiselect opacity-50 cursor-not-allowed" disabled="">`);
+      $$renderer2.option({}, ($$renderer3) => {
+        $$renderer3.push(`Not available for this mode`);
+      });
+      $$renderer2.push(`</select></label>`);
+    }
+    $$renderer2.push(`<!--]--></div> <div><label class="font-medium">Emoji `);
     Required($$renderer2);
     $$renderer2.push(`<!----> <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Emoji used for buttons &amp; dropdowns"></i> <span class="text-2xl">${escape_html(emoji.get(category.emoji) ?? "")}</span> <input type="text" class="input form-input" required=""${attr("value", category.emoji)}/></label></div> <div><label for="enableFeedback" class="font-medium">Feedback <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Gather feedback from members?"></i> <input type="checkbox" id="enableFeedback" name="enableFeedback" class="form-checkbox"${attr("checked", category.enableFeedback, true)}/></label></div> <div><label class="font-medium">Image <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="A link to an image to be sent with the opening message."></i> <input type="url" class="input form-input"${attr("value", category.image)}/></label></div> <div><label class="font-medium">Member limit <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="How many tickets in this category can each member have open?"></i> <input type="number" min="1" max="10" class="input form-input"${attr("value", category.memberLimit)}/></label></div> <div><label class="font-medium">Opening message `);
     Required($$renderer2);
