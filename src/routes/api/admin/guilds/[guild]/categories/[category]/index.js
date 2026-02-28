@@ -76,6 +76,8 @@ module.exports.patch = fastify => ({
 		const data = req.body;
 
 		const select = {
+			channelMode: true,
+			autoAssign: true,
 			channelName: true,
 			claiming: true,
 			// createdAt: true,
