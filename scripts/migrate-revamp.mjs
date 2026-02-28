@@ -26,31 +26,6 @@
  */
 
 import { config } from 'dotenv';
-	header('Step 1 — Backfill Category.channelMode');
-
-	let categoriesWithoutMode = [];
-	try {
-		categoriesWithoutMode = await prisma.category.findMany({
-			select: { id: true, name: true },
-			where: { channelMode: { equals: null } },
-		});
-	} catch (err) {
-		// Fallback for Prisma validation errors: query raw for NULL channelMode
-		warn('Prisma enum/null filter unsupported; falling back to raw SQL for categories');
-		const provider = (process.env.DB_PROVIDER || (process.env.DATABASE_URL || '')).toLowerCase();
-		try {
-			if (provider.includes('postgres')) {
-				categoriesWithoutMode = await prisma.$queryRawUnsafe('SELECT id, name FROM "Category" WHERE "channelMode" IS NULL');
-			} else if (provider.includes('mysql')) {
-				categoriesWithoutMode = await prisma.$queryRawUnsafe('SELECT id, name FROM `Category` WHERE channelMode IS NULL');
-			} else {
-				categoriesWithoutMode = await prisma.$queryRawUnsafe('SELECT id, name FROM Category WHERE channelMode IS NULL');
-			}
-		} catch (err2) {
-			warn('Raw SQL fallback for categories failed: %s', err2.message);
-			categoriesWithoutMode = [];
-		}
-	}
 import { createRequire } from 'module';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
