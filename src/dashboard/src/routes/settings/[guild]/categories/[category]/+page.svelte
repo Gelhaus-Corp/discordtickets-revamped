@@ -73,8 +73,11 @@
 		if (category.channelMode === 'FORUM') {
 			// For forum mode, show forum channels (type 15)
 			return channels.filter((c) => c.type === 15);
+		} else if (category.channelMode === 'THREAD') {
+			// For thread mode, show text channels (type 0) where threads will be created
+			return channels.filter((c) => c.type === 0);
 		} else {
-			// For CHANNEL and THREAD modes, show categories (type 4)
+			// For CHANNEL mode, show categories (type 4)
 			return channels.filter((c) => c.type === 4);
 		}
 	});
@@ -338,26 +341,39 @@
 					</label>
 				</div>
 				<div>
-					<label class="font-medium">
-						Backup Category
-						<i
-							class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
-							title="Alternative category to use when primary is full"
-						></i>
-						<select class="input form-multiselect" bind:value={category.backupCategoryId}>
-							<option value={null} class="p-1">
-								None
-							</option>
-							<hr />
-							{#each categories as cat}
-								{#if cat.id !== category.id}
-									<option value={cat.id} class="p-1">
-										{emoji.get(cat.emoji) ?? ''} {cat.name}
-									</option>
-								{/if}
-							{/each}
-						</select>
-					</label>
+					{#if category.channelMode === 'CHANNEL'}
+						<label class="font-medium">
+							Backup Category
+							<i
+								class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
+								title="Alternative category to use when primary is full"
+							></i>
+							<select class="input form-multiselect" bind:value={category.backupCategoryId}>
+								<option value={null} class="p-1">
+									None
+								</option>
+								<hr />
+								{#each categories as cat}
+									{#if cat.id !== category.id}
+										<option value={cat.id} class="p-1">
+											{emoji.get(cat.emoji) ?? ''} {cat.name}
+										</option>
+									{/if}
+								{/each}
+							</select>
+						</label>
+					{:else}
+						<label class="font-medium opacity-50 cursor-not-allowed">
+							Backup Category
+							<i
+								class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
+								title="Not available for Thread or Forum modes"
+							></i>
+							<select class="input form-multiselect opacity-50 cursor-not-allowed" disabled>
+								<option>Not available for this mode</option>
+							</select>
+						</label>
+					{/if}
 				</div>
 				<div>
 					<label class="font-medium">
