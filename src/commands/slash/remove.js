@@ -11,7 +11,7 @@ module.exports = class RemoveSlashCommand extends SlashCommand {
 		const name = 'remove';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Remove a user or content from a ticket',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,

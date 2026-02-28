@@ -18,7 +18,7 @@ module.exports = class TranscriptSlashCommand extends SlashCommand {
 		const name = 'transcript';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Generate or download a ticket transcript',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,

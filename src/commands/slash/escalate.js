@@ -18,7 +18,7 @@ module.exports = class EscalateSlashCommand extends SlashCommand {
 		const name = 'escalate';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Escalate a ticket to a different category',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,

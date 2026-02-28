@@ -9,7 +9,7 @@ module.exports = class TagSlashCommand extends SlashCommand {
 		const name = 'tag';
 		super(client, {
 			...options,
-			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`) || 'Add or remove tags from a ticket',
 			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
 			name,
