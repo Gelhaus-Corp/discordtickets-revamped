@@ -117,6 +117,11 @@ module.exports.post = fastify => ({
 		// Prepare category data for Prisma
 		const categoryData = { ...data };
 		
+		// For THREAD and FORUM modes, don't send totalLimit (it's not applicable)
+		if (categoryData.channelMode === 'THREAD' || categoryData.channelMode === 'FORUM') {
+			delete categoryData.totalLimit;
+		}
+		
 		// Handle backupCategory relation
 		if (categoryData.backupCategoryId) {
 			categoryData.backupCategory = { connect: { id: categoryData.backupCategoryId } };
