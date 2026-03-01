@@ -3,7 +3,7 @@ name: Upstream Sync
 on:
   schedule:
     - cron: '0 0 */3 * *'
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch: 
 
 jobs:
   sync:
@@ -17,7 +17,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Standard token is used by default here
 
       - name: Configure Git
         run: |
@@ -29,23 +28,37 @@ jobs:
           git remote add upstream https://github.com/discord-tickets/bot.git
           git fetch upstream main
 
-      - name: Rebase and Push
+      - name: Check for Changes
+        id: check_changes
         run: |
-          # Reset buffer branch to match your private main
+          # Compare the upstream main with our local main
+          # If there are 0 commits difference, we set 'changed=false'
+          UPSTREAM_CHANGES=$(git rev-list HEAD..upstream/main --count)
+          echo "Changes found: $UPSTREAM_CHANGES"
+          if [ "$UPSTREAM_CHANGES" -eq "0" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rebase and Push
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
           git checkout -B feat/upstream origin/main
-          
-          # Apply upstream changes
           git rebase upstream/main
-          
-          # Push to your repo (GITHUB_TOKEN has 'contents: write' permission)
           git push origin feat/upstream --force
 
       - name: Create Pull Request
+        if: steps.check_changes.outputs.changed == 'true'
         uses: repo-sync/pull-request@v2
         with:
           source_branch: "feat/upstream"
           destination_branch: "main"
-          pr_title: "🔄 Upstream Sync: New Updates"
-          pr_body: "Automated rebase from upstream. Please review and merge."
-          # Use the built-in secret variable
+          pr_title: "🔄 Upstream Sync: New Updates detected"
+          pr_body: |
+            ## 🤖 Automated Upstream Sync
+            New commits were detected in the upstream repository.
+            
+            **Action:**
+            The `feat/upstream` branch has been rebased. Please review these changes before merging into `main`.
           github_token: ${{ secrets.GITHUB_TOKEN }}
