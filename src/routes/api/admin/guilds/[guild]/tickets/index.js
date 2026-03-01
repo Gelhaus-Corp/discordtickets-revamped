@@ -6,8 +6,39 @@ module.exports.get = fastify => ({
 		/** @type {import('client')} */
 		const client = req.routeOptions.config.client;
 		const { query } = req;
+
+		// Pagination support
+		const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 50));
+		const page = Math.max(1, parseInt(query.page) || 1);
+		const skip = (page - 1) * limit;
+
+		// Build where clause
+		const where = {
+			guildId: req.params.guild,
+		};
+
+		// Optional: filter by date range
+		if (query.since) {
+			where.createdAt = { gte: new Date(Number(query.since) * 1000 || query.since) };
+		}
+
+		// Optional: filter by status
+		if (query.status === 'open') {
+			where.open = true;
+		} else if (query.status === 'closed') {
+			where.open = false;
+		}
+
+		// Optional: filter by transcript existence
+		if (query.hasTranscript === 'true') {
+			where.htmlTranscript = { not: null };
+		}
+
+		// Get total count for pagination
+		const total = await client.prisma.ticket.count({ where });
+
 		const tickets = await client.prisma.ticket.findMany({
-			orderBy: { createdAt: 'asc' },
+			orderBy: { createdAt: 'desc' },
 			select: {
 				categoryId: true,
 				claimedById: true,
@@ -18,7 +49,7 @@ module.exports.get = fastify => ({
 				createdById: true,
 				firstResponseAt: true,
 				guildId: true,
-				htmlTranscript: true /* may be missing in older DB */,
+				htmlTranscript: true,
 				id: true,
 				messageCount: true,
 				number: true,
@@ -26,17 +57,28 @@ module.exports.get = fastify => ({
 				priority: true,
 				topic: true,
 			},
-			where: {
-				createdAt: { gte: query.since && new Date((Number(query.since) * 1000) || query.since) },
-				guildId: req.params.guild,
-			},
+			where,
+			skip,
+			take: limit,
 		});
 
 		const base = process.env.HTTP_EXTERNAL;
-		return Promise.all(
+		const decrypted = await Promise.all(
 			tickets.map(async ticket => {
-				ticket.closedReason &&= await crypto.queue(w => w.decrypt(ticket.closedReason));
-				ticket.topic &&= await crypto.queue(w => w.decrypt(ticket.topic));
+				if (ticket.closedReason) {
+					try {
+						ticket.closedReason = await crypto.queue(w => w.decrypt(ticket.closedReason));
+					} catch (error) {
+						ticket.closedReason = '[Decryption failed]';
+					}
+				}
+				if (ticket.topic) {
+					try {
+						ticket.topic = await crypto.queue(w => w.decrypt(ticket.topic));
+					} catch (error) {
+						ticket.topic = '[Decryption failed]';
+					}
+				}
 				// Build absolute transcript URL when the path exists
 				if (ticket.htmlTranscript && base) {
 					ticket.transcriptUrl = `${base}/api/admin/guilds/${ticket.guildId}/tickets/${ticket.id}/transcript`;
@@ -44,6 +86,16 @@ module.exports.get = fastify => ({
 				return ticket;
 			}),
 		);
+
+		return {
+			tickets: decrypted,
+			pagination: {
+				page,
+				limit,
+				total,
+				totalPages: Math.ceil(total / limit),
+			},
+		};
 	},
 	onRequest: [fastify.authenticate, fastify.isAdmin],
 });
