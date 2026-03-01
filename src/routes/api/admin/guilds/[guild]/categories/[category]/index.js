@@ -128,6 +128,11 @@ module.exports.patch = fastify => ({
 		if (Object.prototype.hasOwnProperty.call(data, 'createdAt')) delete data.createdAt;
 		if (Object.prototype.hasOwnProperty.call(data, 'guildId')) delete data.guildId;
 
+		// For THREAD and FORUM modes, don't send totalLimit (it's not applicable)
+		if (data.channelMode === 'THREAD' || data.channelMode === 'FORUM') {
+			delete data.totalLimit;
+		}
+
 		// Handle backupCategory relation
 		if (data.backupCategoryId) {
 			data.backupCategory = { connect: { id: data.backupCategoryId } };
