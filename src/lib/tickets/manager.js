@@ -1473,9 +1473,39 @@ module.exports = class TicketManager {
 					if (cleanName !== channel.name) {
 						await channel.setName(cleanName, closeReason).catch(() => null);
 					}
-					// For threads/forum posts: lock and archive instead of deleting
+					
+					// For threads/forum posts: delete the old closing message and send a new archived message
+					if (ticket.openingMessageId) {
+						try {
+							const oldMessage = await channel.messages.fetch(ticket.openingMessageId).catch(() => null);
+							if (oldMessage) {
+								await oldMessage.delete().catch(() => null);
+							}
+						} catch (err) {
+							// Silently fail if we can't delete the old message
+						}
+					}
+					
+					// Lock and archive the thread
 					await channel.setLocked(true, closeReason);
 					await channel.setArchived(true, closeReason);
+					
+					// Send a final "archived" message
+					try {
+						await channel.send({
+							embeds: [
+								new ExtendedEmbedBuilder({
+									iconURL: guild.iconURL(),
+									text: ticket.guild.footer,
+								})
+									.setColor(ticket.guild.primaryColour)
+									.setTitle('📦 Ticket Archived')
+									.setDescription('This ticket has been closed and archived.'),
+							],
+						}).catch(() => null);
+					} catch (err) {
+						// Silently fail if we can't send the archived message
+					}
 				} else if (channel.deletable) {
 					await channel.delete(closeReason);
 				}
