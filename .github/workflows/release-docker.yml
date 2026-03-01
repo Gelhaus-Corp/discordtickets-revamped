@@ -3,9 +3,6 @@ name: Release Docker image
 on:
   release:
     types: [published]
-  push:
-    branches:
-      - 'main'
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
