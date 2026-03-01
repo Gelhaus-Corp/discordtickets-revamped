@@ -6,10 +6,14 @@
 
 	let searchQuery = $state('');
 	let sortBy = $state('date');
+	let searchTerm = $state('');
 	let searched = $state(false);
 	let isLoading = $state(false);
 	let searchResults = $state([]);
+	let currentPage = $state(1);
+	let totalPages = $state(1);
 	let totalResults = $state(0);
+	let pageSize = $state(20);
 
 	const formatDuration = (start, end) => {
 		if (!start || !end) return 'N/A';
@@ -19,7 +23,7 @@
 		return `${hours}h ${minutes}m`;
 	};
 
-	const performSearch = async () => {
+	const performSearch = async (pg = 1) => {
 		if (!searchQuery.trim()) {
 			searchResults = [];
 			searched = false;
@@ -29,10 +33,14 @@
 
 		isLoading = true;
 		searched = true;
+		currentPage = pg;
 
 		try {
 			const params = new URLSearchParams({
-				since: Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60 // Last year
+				status: 'closed',
+				hasTranscript: 'true',
+				limit: pageSize.toString(),
+				page: pg.toString()
 			});
 
 			const response = await fetch(
@@ -42,14 +50,12 @@
 
 			if (response.ok) {
 				const result = await response.json();
-				const allTickets = Array.isArray(result) ? result : (Array.isArray(result.tickets) ? result.tickets : []);
-				
-				// Filter to only show closed tickets with transcripts, and search by query
+				const allTickets = result.tickets || [];
+
+				// Client-side filtering by search term (for quick local searches)
 				const searchLower = searchQuery.toLowerCase();
 				const filtered = allTickets
-					.filter(t => (t.htmlTranscript && t.htmlTranscript.length > 0) || t.transcriptUrl) // Has transcript
-					.filter(t => !t.open) // Is closed
-					.filter(t => 
+					.filter(t =>
 						// Search by ID, topic, or user ID
 						t.id?.toString().includes(searchQuery) ||
 						t.topic?.toLowerCase().includes(searchLower) ||
@@ -62,19 +68,21 @@
 							return durationB - durationA;
 						}
 						return new Date(b.createdAt) - new Date(a.createdAt);
-					})
-					.slice(0, 20);
-				
+					});
+
 				searchResults = filtered;
-				totalResults = filtered.length;
+				totalResults = result.pagination?.total || filtered.length;
+				totalPages = result.pagination?.totalPages || 1;
 			} else {
 				searchResults = [];
 				totalResults = 0;
+				totalPages = 1;
 			}
 		} catch (error) {
 			console.error('Search failed:', error);
 			searchResults = [];
 			totalResults = 0;
+			totalPages = 1;
 		} finally {
 			isLoading = false;
 		}
@@ -82,7 +90,13 @@
 
 	const handleKeydown = (e) => {
 		if (e.key === 'Enter') {
-			performSearch();
+			performSearch(1);
+		}
+	};
+
+	const goToPage = (pg) => {
+		if (pg >= 1 && pg <= totalPages) {
+			performSearch(pg);
 		}
 	};
 
@@ -113,10 +127,14 @@
 
 <div class="mx-auto my-8 max-w-6xl px-4">
 	<!-- Stats -->
-	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-8">
+	<div class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
-			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Results Found</div>
+			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Total Results</div>
 			<div class="mt-2 text-3xl font-bold">{totalResults}</div>
+		</div>
+		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
+			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Current Page</div>
+			<div class="mt-2 text-3xl font-bold">{currentPage} / {totalPages}</div>
 		</div>
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
 			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">
@@ -150,7 +168,7 @@
 					bind:value={searchQuery}
 					onkeydown={handleKeydown}
 				/>
-				<p class="text-xs text-gray-500 dark:text-slate-400 mt-2">Press Enter or click Search to find transcripts (up to 20 results)</p>
+				<p class="text-xs text-gray-500 dark:text-slate-400 mt-2">Press Enter or click Search to find transcripts</p>
 			</div>
 			<div>
 				<label class="block text-sm font-semibold mb-2">Sort By</label>
@@ -164,7 +182,7 @@
 			</div>
 		</div>
 		<button
-			onclick={performSearch}
+			onclick={() => performSearch(1)}
 			disabled={isLoading}
 			class="mt-4 rounded-lg bg-blurple px-6 py-2 font-medium text-white transition duration-300 hover:bg-blurple/80 disabled:opacity-50 disabled:cursor-not-allowed"
 		>
@@ -187,7 +205,7 @@
 	{:else if searchResults.length > 0}
 		<div class="space-y-4">
 			<div class="text-sm text-gray-600 dark:text-slate-400 mb-4">
-				Found {totalResults} transcript{totalResults !== 1 ? 's' : ''} (showing up to 20 results)
+				Showing page {currentPage} of {totalPages} ({searchResults.length} results on this page)
 			</div>
 			{#each searchResults as transcript}
 				<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
@@ -257,6 +275,47 @@
 					</div>
 				</div>
 			{/each}
+
+			<!-- Pagination Controls -->
+			{#if totalPages > 1}
+				<div class="flex items-center justify-center gap-2 mt-8">
+					<button
+						onclick={() => goToPage(1)}
+						disabled={currentPage === 1 || isLoading}
+						class="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600"
+						title="First page"
+					>
+						<i class="fa-solid fa-chevron-left"></i>
+						<i class="fa-solid fa-chevron-left"></i>
+					</button>
+					<button
+						onclick={() => goToPage(currentPage - 1)}
+						disabled={currentPage === 1 || isLoading}
+						class="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600"
+						title="Previous page"
+					>
+						<i class="fa-solid fa-chevron-left"></i>
+					</button>
+					<span class="px-4 py-2 font-medium">Page {currentPage} of {totalPages}</span>
+					<button
+						onclick={() => goToPage(currentPage + 1)}
+						disabled={currentPage === totalPages || isLoading}
+						class="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600"
+						title="Next page"
+					>
+						<i class="fa-solid fa-chevron-right"></i>
+					</button>
+					<button
+						onclick={() => goToPage(totalPages)}
+						disabled={currentPage === totalPages || isLoading}
+						class="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600"
+						title="Last page"
+					>
+						<i class="fa-solid fa-chevron-right"></i>
+						<i class="fa-solid fa-chevron-right"></i>
+					</button>
+				</div>
+			{/if}
 		</div>
 	{:else if searched}
 		<div class="rounded-lg bg-white p-12 shadow-sm dark:bg-slate-700 text-center">

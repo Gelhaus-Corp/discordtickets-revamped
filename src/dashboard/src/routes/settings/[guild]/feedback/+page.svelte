@@ -5,41 +5,159 @@
 	/** @type {import('./$types').PageData} */
 	let { data } = $props();
 
+	let sinceDate = $state(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+	let untilDate = $state(new Date());
+	let selectedCategory = $state('');
+	let isLoading = $state(false);
+
 	const getRatingLabel = (rating) => {
 		const labels = { 5: 'Excellent', 4: 'Good', 3: 'Okay', 2: 'Poor', 1: 'Terrible' };
 		return labels[rating] || 'Unknown';
 	};
 
 	const getRatingColor = (rating) => {
-		const colors = { 
-			5: 'bg-green-100 dark:bg-green-900/30', 
-			4: 'bg-blue-100 dark:bg-blue-900/30', 
-			3: 'bg-yellow-100 dark:bg-yellow-900/30', 
-			2: 'bg-orange-100 dark:bg-orange-900/30', 
-			1: 'bg-red-100 dark:bg-red-900/30' 
+		const colors = {
+			5: 'bg-green-100 dark:bg-green-900/30',
+			4: 'bg-blue-100 dark:bg-blue-900/30',
+			3: 'bg-yellow-100 dark:bg-yellow-900/30',
+			2: 'bg-orange-100 dark:bg-orange-900/30',
+			1: 'bg-red-100 dark:bg-red-900/30'
 		};
 		return colors[rating] || 'bg-gray-100 dark:bg-gray-900/30';
 	};
+
+	const getColorForRating = (rating) => {
+		const colors = {
+			5: '#10b981', // green
+			4: '#3b82f6', // blue
+			3: '#f59e0b', // amber
+			2: '#f97316', // orange
+			1: '#ef4444'  // red
+		};
+		return colors[rating] || '#6b7280';
+	};
+
+	async function refreshData() {
+		isLoading = true;
+		try {
+			const since = Math.floor(sinceDate.getTime() / 1000);
+			const until = Math.floor(untilDate.getTime() / 1000);
+			const params = new URLSearchParams({
+				since: since.toString(),
+				until: until.toString(),
+				...(selectedCategory && { categoryId: selectedCategory })
+			});
+
+			const res = await fetch(`/api/admin/guilds/${$page.params.guild}/feedback?${params}`, {
+				credentials: 'include'
+			});
+
+			if (res.ok) {
+				const newData = await res.json();
+				data.feedback = newData.feedback;
+				data.stats = {
+					total: newData.totalCount,
+					avgRating: newData.avgRating,
+					byRating: newData.ratingCounts
+				};
+				data.trend = newData.trend;
+
+				// Recalculate feedback by category
+				const feedbackByCategory = {};
+				newData.feedback.forEach(f => {
+					const categoryName = f.categoryName || 'Unknown';
+					if (!feedbackByCategory[categoryName]) {
+						feedbackByCategory[categoryName] = [];
+					}
+					feedbackByCategory[categoryName].push(f);
+				});
+				data.feedbackByCategory = feedbackByCategory;
+			}
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function formatDateForInput(date) {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
+
+	function getMaxTrendValue() {
+		if (!data.trend || data.trend.length === 0) return 1;
+		return Math.max(...data.trend.map(d => d.count || 0)) || 1;
+	}
 </script>
 
 <h1 class="m-4 text-center text-4xl font-bold">Feedback & Analytics</h1>
 
 <div class="mx-auto my-8 max-w-6xl px-4">
+	<!-- Date Range and Category Filters -->
+	<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700 mb-8">
+		<h2 class="mb-4 text-xl font-bold">Filters</h2>
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+			<div>
+				<label class="block text-sm font-medium mb-2">From Date</label>
+				<input
+					type="date"
+					value={formatDateForInput(sinceDate)}
+					onchange={(e) => (sinceDate = new Date(e.target.value))}
+					class="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-slate-600 dark:border-slate-500"
+					disabled={isLoading}
+				/>
+			</div>
+			<div>
+				<label class="block text-sm font-medium mb-2">To Date</label>
+				<input
+					type="date"
+					value={formatDateForInput(untilDate)}
+					onchange={(e) => (untilDate = new Date(e.target.value))}
+					class="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-slate-600 dark:border-slate-500"
+					disabled={isLoading}
+				/>
+			</div>
+			<div>
+				<label class="block text-sm font-medium mb-2">Category</label>
+				<select
+					bind:value={selectedCategory}
+					class="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-slate-600 dark:border-slate-500"
+					disabled={isLoading}
+				>
+					<option value="">All Categories</option>
+					{#each data.categories || [] as category}
+						<option value={category.id}>{category.name}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="flex items-end">
+				<button
+					onclick={refreshData}
+					disabled={isLoading}
+					class="w-full px-4 py-2 bg-blurple text-white rounded-md hover:bg-blurple/90 disabled:opacity-50"
+				>
+					{isLoading ? 'Loading...' : 'Apply Filters'}
+				</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-4 mb-8">
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
 			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Total Feedback</div>
-			<div class="mt-2 text-3xl font-bold">{data.stats.total}</div>
+			<div class="mt-2 text-3xl font-bold">{data.stats.total || 0}</div>
 		</div>
 
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
 			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Average Rating</div>
-			<div class="mt-2 text-3xl font-bold">{data.stats.avgRating} / 5</div>
+			<div class="mt-2 text-3xl font-bold">{data.stats.avgRating || 0} / 5</div>
 			<div class="mt-1 flex gap-1">
 				{#each Array(5) as _, i}
 					<i
 						class={`fa-solid fa-star text-sm ${
-							i < Math.round(data.stats.avgRating) ? 'text-yellow-500' : 'text-gray-300'
+							i < Math.round(data.stats.avgRating || 0) ? 'text-yellow-500' : 'text-gray-300'
 						}`}
 					></i>
 				{/each}
@@ -47,23 +165,48 @@
 		</div>
 
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
-			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Excellent (5★)</div>
-			<div class="mt-2 text-3xl font-bold text-green-600">{data.stats.byRating[5]}</div>
+			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">5★ Excellent</div>
+			<div class="mt-2 text-3xl font-bold text-green-600">{data.stats.byRating?.[5] || 0}</div>
 		</div>
 
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
-			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">Poor (1★)</div>
-			<div class="mt-2 text-3xl font-bold text-red-600">{data.stats.byRating[1]}</div>
+			<div class="text-sm font-semibold text-gray-600 dark:text-slate-400">1★ Terrible</div>
+			<div class="mt-2 text-3xl font-bold text-red-600">{data.stats.byRating?.[1] || 0}</div>
 		</div>
 	</div>
+
+	<!-- Trend Chart -->
+	{#if data.trend && data.trend.length > 0}
+		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700 mb-8">
+			<h2 class="mb-6 text-2xl font-bold">Feedback Trends</h2>
+			<div class="flex items-end gap-2 h-64 overflow-x-auto pb-4">
+				{#each data.trend as point}
+					<div class="flex flex-col items-center gap-2 min-w-fit">
+						<div class="relative h-40 flex items-end">
+							<div
+								class="w-8 bg-gradient-to-t from-blurple to-blue-400 rounded-t transition-all hover:from-blurple hover:to-blue-300"
+								style={`height: ${(point.count / getMaxTrendValue()) * 160}px`}
+								title={`${point.count} feedback (avg rating: ${point.avgRating}/5)`}
+							></div>
+						</div>
+						<div class="text-xs text-gray-600 dark:text-slate-400 text-center whitespace-nowrap">
+							{new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Rating Distribution -->
 	<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700 mb-8">
 		<h2 class="mb-6 text-2xl font-bold">Rating Distribution</h2>
 		<div class="space-y-4">
 			{#each [5, 4, 3, 2, 1] as rating}
+				{@const count = data.stats.byRating?.[rating] || 0}
+				{@const percentage = data.stats.total > 0 ? ((count / data.stats.total) * 100) : 0}
 				<div class="flex items-center gap-4">
-					<div class="w-20">
+					<div class="w-24">
 						<div class="flex items-center gap-1">
 							{#each Array(rating) as _}
 								<i class="fa-solid fa-star text-yellow-500"></i>
@@ -76,31 +219,34 @@
 					</div>
 					<div class="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-8 overflow-hidden">
 						<div
-							class="bg-yellow-500 h-full flex items-center justify-center text-white text-sm font-medium"
-							style={`width: ${data.stats.total > 0 ? (data.stats.byRating[rating] / data.stats.total) * 100 : 0}%`}
+							class="bg-yellow-500 h-full flex items-center justify-center text-white text-sm font-medium transition-all"
+							style={`width: ${percentage}%`}
 						>
-							{#if (data.stats.byRating[rating] / data.stats.total) * 100 > 20}
-								{data.stats.byRating[rating]}
+							{#if percentage > 15}
+								<span>{count}</span>
 							{/if}
 						</div>
 					</div>
-					<div class="w-12 text-right font-semibold">{data.stats.byRating[rating]}</div>
+					<div class="w-16 text-right">
+						<div class="font-semibold">{count}</div>
+						<div class="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
+					</div>
 				</div>
 			{/each}
 		</div>
 	</div>
 
 	<!-- Feedback by Category -->
-	{#if Object.keys(data.feedbackByCategory).length > 0}
+	{#if Object.keys(data.feedbackByCategory || {}).length > 0}
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700 mb-8">
 			<h2 class="mb-6 text-2xl font-bold">Feedback by Category</h2>
 			<div class="space-y-4">
-				{#each Object.entries(data.feedbackByCategory) as [categoryName, categoryFeedback]}
-					{@const avgRating = (categoryFeedback.reduce((sum, f) => sum + (f.rating || 0), 0) / categoryFeedback.length).toFixed(2)}
-					<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-600">
-						<div class="flex items-center justify-between mb-3">
+				{#each Object.entries(data.feedbackByCategory || {}) as [categoryName, categoryFeedback]}
+					{@const avgRating = categoryFeedback.length > 0 ? (categoryFeedback.reduce((sum, f) => sum + (f.rating || 0), 0) / categoryFeedback.length).toFixed(2) : 0}
+					<div class="rounded-lg border border-gray-200 dark:border-gray-600 p-4 hover:shadow-md transition">
+						<div class="flex items-center justify-between mb-4">
 							<div class="font-semibold text-lg">{categoryName}</div>
-							<div class="flex items-center gap-2">
+							<div class="flex items-center gap-3">
 								<span class="text-sm text-gray-600 dark:text-slate-400">{avgRating} / 5</span>
 								<div class="flex gap-1">
 									{#each Array(5) as _, i}
@@ -116,13 +262,14 @@
 								</span>
 							</div>
 						</div>
-						<div class="flex gap-4">
+						<div class="grid grid-cols-5 gap-2">
 							{#each [5, 4, 3, 2, 1] as rating}
 								{@const count = categoryFeedback.filter(f => f.rating === rating).length}
+								{@const percentage = categoryFeedback.length > 0 ? ((count / categoryFeedback.length) * 100) : 0}
 								<div class="text-center">
-									<div class="text-sm font-medium">{rating}★</div>
-									<div class="text-lg font-bold text-yellow-600">{count}</div>
-									<div class="text-xs text-gray-500">{((count / categoryFeedback.length) * 100).toFixed(0)}%</div>
+									<div class="text-sm font-medium mb-1">{rating}★</div>
+									<div class="text-lg font-bold mb-1">{count}</div>
+									<div class="text-xs bg-gray-100 dark:bg-slate-600 rounded px-2 py-1">{percentage.toFixed(0)}%</div>
 								</div>
 							{/each}
 						</div>
@@ -133,10 +280,10 @@
 	{/if}
 
 	<!-- Recent Feedback -->
-	{#if data.feedback.length > 0}
+	{#if (data.feedback || []).length > 0}
 		<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-700">
 			<h2 class="mb-6 text-2xl font-bold">Recent Feedback</h2>
-			<div class="space-y-4 max-h-96 overflow-y-auto">
+			<div class="space-y-3 max-h-96 overflow-y-auto">
 				{#each data.feedback.slice(0, 20) as feedback}
 					<div class={`rounded-lg p-4 ${getRatingColor(feedback.rating)}`}>
 						<div class="flex items-start justify-between mb-2">
@@ -146,21 +293,24 @@
 									Ticket #{feedback.ticketNumber || 'N/A'}
 								</div>
 							</div>
-							<div class="flex gap-1">
-								{#each Array(5) as _, i}
-									<i
-										class={`fa-solid fa-star text-sm ${
-											i < feedback.rating ? 'text-yellow-500' : 'text-gray-400'
-										}`}
-									></i>
-								{/each}
+							<div class="flex items-center gap-2">
+								<div class="flex gap-1">
+									{#each Array(5) as _, i}
+										<i
+											class={`fa-solid fa-star text-sm ${
+												i < feedback.rating ? 'text-yellow-500' : 'text-gray-400'
+											}`}
+										></i>
+									{/each}
+								</div>
+								<span class="font-semibold">{feedback.rating}/5</span>
 							</div>
 						</div>
 						{#if feedback.comment}
-							<p class="text-sm italic">"{feedback.comment}"</p>
+							<p class="text-sm italic mb-2">"{feedback.comment}"</p>
 						{/if}
 						{#if feedback.createdAt}
-							<div class="mt-2 text-xs text-gray-500">
+							<div class="text-xs text-gray-500">
 								{new Date(feedback.createdAt).toLocaleDateString()} at{' '}
 								{new Date(feedback.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 							</div>
@@ -172,7 +322,7 @@
 	{:else}
 		<div class="rounded-lg bg-white p-12 shadow-sm dark:bg-slate-700 text-center">
 			<i class="fa-solid fa-inbox text-6xl text-gray-400 dark:text-gray-600 mb-4"></i>
-			<p class="text-lg text-gray-600 dark:text-slate-400">No feedback yet</p>
+			<p class="text-lg text-gray-600 dark:text-slate-400">No feedback for the selected period</p>
 		</div>
 	{/if}
 

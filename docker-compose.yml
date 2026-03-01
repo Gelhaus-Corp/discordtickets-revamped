@@ -21,7 +21,7 @@ services:
       MYSQL_USER: tickets
 
   bot:
-    image: eartharoid/discord-tickets:4.0
+    image: ghcr.io/gelhaus-corp/discordtickets-revamped:latest # Or use :main for development builds
     depends_on:
       - mysql
     restart: unless-stopped

@@ -117,26 +117,31 @@ model Feedback {
 }
 
 model Guild {
-    autoClose     Int        @default(43200000)
-    autoTag       Json       @default("[]")
-    archive       Boolean    @default(true)
-    blocklist     Json       @default("[]")
-    categories    Category[]
-    claimButton   Boolean    @default(false)
-    closeButton   Boolean    @default(false)
-    createdAt     DateTime   @default(now())
-    errorColour   String     @default("Red")
-    feedback      Feedback[]
-    footer        String?    @default("Discord Tickets by eartharoid")
-    id            String     @id @db.VarChar(19)
-    locale        String     @default("en-GB")
-    logChannel    String?    @db.VarChar(19)
-    primaryColour String     @default("#009999")
-    staleAfter    Int?
-    successColour String     @default("Green")
-    tags          Tag[]
-    tickets       Ticket[]
-    workingHours  Json       @default("[\"UTC\", [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"]]")
+    autoClose          Int        @default(43200000)
+    autoTag            Json       @default("[]")
+    archive            Boolean    @default(true)
+    blocklist          Json       @default("[]")
+    botAvatar          String?    @db.Text
+    botBio             String?    @db.Text
+    botBanner          String?    @db.Text
+    botUsername        String?
+    categories         Category[]
+    claimButton        Boolean    @default(false)
+    closeButton        Boolean    @default(false)
+    closeReasonButton  Boolean    @default(false)
+    createdAt          DateTime   @default(now())
+    errorColour        String     @default("Red")
+    feedback           Feedback[]
+    footer             String?    @default("Discord Tickets by eartharoid")
+    id                 String     @id @db.VarChar(19)
+    locale             String     @default("en-GB")
+    logChannel         String?    @db.VarChar(19)
+    primaryColour      String     @default("#009999")
+    staleAfter         Int?
+    successColour      String     @default("Green")
+    tags               Tag[]
+    tickets            Ticket[]
+    workingHours       Json       @default("[\"UTC\", [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"], [\"00:00\",\"23:59\"]]")
 
     @@map("guilds")
 }
