@@ -137,7 +137,7 @@ module.exports.patch = fastify => ({
 				}
 
 				if (Object.keys(editOptions).length > 0) {
-					await guild.members.editMe(editOptions);
+					await guild.members.me?.edit(editOptions);
 				}
 			}
 		} catch (error) {
