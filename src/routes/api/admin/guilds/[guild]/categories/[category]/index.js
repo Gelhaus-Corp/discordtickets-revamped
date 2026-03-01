@@ -127,6 +127,14 @@ module.exports.patch = fastify => ({
 		if (Object.prototype.hasOwnProperty.call(data, 'id')) delete data.id;
 		if (Object.prototype.hasOwnProperty.call(data, 'createdAt')) delete data.createdAt;
 
+		// Handle backupCategory relation
+		if (data.backupCategoryId) {
+			data.backupCategory = { connect: { id: data.backupCategoryId } };
+		} else if (data.backupCategoryId === null) {
+			data.backupCategory = { disconnect: true };
+		}
+		delete data.backupCategoryId;
+
 		const category = await client.prisma.category.update({
 			data: {
 				...data,

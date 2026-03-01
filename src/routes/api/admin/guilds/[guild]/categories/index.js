@@ -114,11 +114,20 @@ module.exports.post = fastify => ({
 
 		data.channelName ||= 'ticket-{num}'; // not ??=, expect empty string
 
+		// Prepare category data for Prisma
+		const categoryData = { ...data };
+		
+		// Handle backupCategory relation
+		if (categoryData.backupCategoryId) {
+			categoryData.backupCategory = { connect: { id: categoryData.backupCategoryId } };
+		}
+		delete categoryData.backupCategoryId;
+
 		const category = await client.prisma.category.create({
 			data: {
 				guild: { connect: { id: guild.id } },
-				...data,
-				questions: { createMany: { data: data.questions ?? [] } },
+				...categoryData,
+				questions: { createMany: { data: categoryData.questions ?? [] } },
 			},
 		});
 

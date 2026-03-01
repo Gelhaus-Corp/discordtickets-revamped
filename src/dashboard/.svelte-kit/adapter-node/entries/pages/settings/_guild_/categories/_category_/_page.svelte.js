@@ -507,7 +507,15 @@ function _page($$renderer, $$props) {
         $$renderer3.push(`<!--]-->`);
       }
     );
-    $$renderer2.push(`</label></div> <div><label class="font-medium">Total limit <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="The total number of tickets that can be open at once."></i> <input type="number" min="1" max="50" class="input form-input"${attr("value", category.totalLimit)}/></label></div></div> <div><div class="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-700"><div class="flex flex-col gap-4"><div class="text-center"><h3 class="text-xl font-bold">Questions</h3> <p class="text-gray-500 dark:text-slate-400">${escape_html(questionsState.questions.length)}/5</p></div> `);
+    $$renderer2.push(`</label></div> `);
+    if (category.channelMode === "CHANNEL") {
+      $$renderer2.push("<!--[-->");
+      $$renderer2.push(`<div><label class="font-medium">Total limit <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="The total number of tickets that can be open at once."></i> <input type="number" min="1" max="50" class="input form-input"${attr("value", category.totalLimit)}/></label></div>`);
+    } else {
+      $$renderer2.push("<!--[!-->");
+      $$renderer2.push(`<div><label class="font-medium opacity-50 cursor-not-allowed">Total limit <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Not available for Thread or Forum modes"></i> <input type="number" disabled="" class="input form-input opacity-50 cursor-not-allowed" placeholder="Not available for this mode"/></label></div>`);
+    }
+    $$renderer2.push(`<!--]--></div> <div><div class="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-700"><div class="flex flex-col gap-4"><div class="text-center"><h3 class="text-xl font-bold">Questions</h3> <p class="text-gray-500 dark:text-slate-400">${escape_html(questionsState.questions.length)}/5</p></div> `);
     if (questionsState.questions.length > 0) {
       $$renderer2.push("<!--[-->");
       $$renderer2.push(`<div><label class="font-medium">Custom topic <i class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400" title="Which question's value should be used as the ticket topic?"></i> `);
