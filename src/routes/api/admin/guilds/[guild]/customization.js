@@ -105,7 +105,7 @@ module.exports.patch = fastify => ({
 				id,
 				...filteredData,
 			},
-			data: filteredData,
+			update: filteredData,
 			where: { id },
 			select: {
 				botAvatar: true,
