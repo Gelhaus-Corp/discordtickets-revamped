@@ -116,32 +116,32 @@ module.exports.patch = fastify => ({
 		});
 
 		// Apply customization to the bot in the guild
-		try {
-			const guild = client.guilds.cache.get(id);
-			if (guild) {
-				const editOptions = {};
-
-				// Set custom nickname for the guild
+		const guild = client.guilds.cache.get(id);
+		if (guild) {
+			const botMember = guild.members.me;
+			if (botMember) {
 				if (Object.prototype.hasOwnProperty.call(filteredData, 'botUsername')) {
-					editOptions.nick = filteredData.botUsername || null;
+					try {
+						await botMember.setNickname(filteredData.botUsername || null);
+					} catch (error) {
+						client.log.warn(`Failed to apply bot nickname to guild ${id}: ${error.message}`);
+					}
 				}
-
-				// Set custom avatar for the guild
 				if (Object.prototype.hasOwnProperty.call(filteredData, 'botAvatar')) {
-					editOptions.avatar = filteredData.botAvatar || null;
+					try {
+						await botMember.setAvatar(filteredData.botAvatar || null);
+					} catch (error) {
+						client.log.warn(`Failed to apply bot avatar to guild ${id}: ${error.message}`);
+					}
 				}
-
-				// Set custom banner for the guild
 				if (Object.prototype.hasOwnProperty.call(filteredData, 'botBanner')) {
-					editOptions.banner = filteredData.botBanner || null;
-				}
-
-				if (Object.keys(editOptions).length > 0) {
-					await guild.members.me?.edit(editOptions);
+					try {
+						await botMember.setBanner(filteredData.botBanner || null);
+					} catch (error) {
+						client.log.warn(`Failed to apply bot banner to guild ${id}: ${error.message}`);
+					}
 				}
 			}
-		} catch (error) {
-			client.log.warn(`Failed to apply bot customization to guild ${id}: ${error.message}`);
 		}
 
 		// Create a diff without image data (base64 strings are too long for Discord embeds)
