@@ -115,33 +115,16 @@ module.exports.patch = fastify => ({
 			},
 		});
 
-		// Apply customization to the bot in the guild
-		try {
-			const guild = client.guilds.cache.get(id);
-			if (guild) {
-				const editOptions = {};
-
-				// Set custom nickname for the guild
-				if (Object.prototype.hasOwnProperty.call(filteredData, 'botUsername')) {
-					editOptions.nick = filteredData.botUsername || null;
+		// Apply the bot's nickname in the guild
+		if (Object.prototype.hasOwnProperty.call(filteredData, 'botUsername')) {
+			try {
+				const guild = client.guilds.cache.get(id);
+				if (guild) {
+					await guild.members.me?.edit({ nick: filteredData.botUsername || null });
 				}
-
-				// Set custom avatar for the guild
-				if (Object.prototype.hasOwnProperty.call(filteredData, 'botAvatar')) {
-					editOptions.avatar = filteredData.botAvatar || null;
-				}
-
-				// Set custom banner for the guild
-				if (Object.prototype.hasOwnProperty.call(filteredData, 'botBanner')) {
-					editOptions.banner = filteredData.botBanner || null;
-				}
-
-				if (Object.keys(editOptions).length > 0) {
-					await guild.members.me?.edit(editOptions);
-				}
+			} catch (error) {
+				client.log.warn(`Failed to apply bot nickname to guild ${id}: ${error.message}`);
 			}
-		} catch (error) {
-			client.log.warn(`Failed to apply bot customization to guild ${id}: ${error.message}`);
 		}
 
 		// Create a diff without image data (base64 strings are too long for Discord embeds)
