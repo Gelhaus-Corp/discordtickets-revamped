@@ -12,6 +12,7 @@ const { join } = require('path');
 const YAML = require('yaml');
 const TicketManager = require('./lib/tickets/manager');
 const sqliteMiddleware = require('./lib/middleware/prisma-sqlite');
+const runMigrations = require('./lib/migrate');
 const ms = require('ms');
 
 module.exports = class Client extends FrameworkClient {
@@ -131,6 +132,14 @@ module.exports = class Client extends FrameworkClient {
 		this.prisma.$on('info', e => this.log.info.prisma(`${e.target} ${e.message}`));
 		this.prisma.$on('warn', e => this.log.warn.prisma(`${e.target} ${e.message}`));
 		this.prisma.$on('query', e => this.log.debug.prisma(e));
+
+		// Run database migrations
+		try {
+			await runMigrations(this);
+		} catch (error) {
+			this.log.error(`Failed to run migrations: ${error.message}`);
+			process.exit(1);
+		}
 
 		if (process.env.DB_PROVIDER === 'sqlite') {
 			// rewrite queries that use unsupported features
