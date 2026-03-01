@@ -102,6 +102,11 @@
 			if (category.discordCategory === 'new') json.discordCategory = null;
 			json.cooldown = category.cooldown ? ms(category.cooldown) : null;
 
+			// For THREAD and FORUM modes, don't send totalLimit
+			if (json.channelMode === 'THREAD' || json.channelMode === 'FORUM') {
+				json.totalLimit = null;
+			}
+
 			if (json.name.length > 30) throw new Error(`The name is too long (${json.name.length}>30).`);
 
 			if (json.description.length > 100)
@@ -639,22 +644,40 @@
 						</select>
 					</label>
 				</div>
-				<div>
-					<label class="font-medium">
-						Total limit
-						<i
-							class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
-							title="The total number of tickets that can be open at once."
-						></i>
-						<input
-							type="number"
-							min="1"
-							max="50"
-							class="input form-input"
-							bind:value={category.totalLimit}
-						/>
-					</label>
-				</div>
+				{#if category.channelMode === 'CHANNEL'}
+					<div>
+						<label class="font-medium">
+							Total limit
+							<i
+								class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
+								title="The total number of tickets that can be open at once."
+							></i>
+							<input
+								type="number"
+								min="1"
+								max="50"
+								class="input form-input"
+								bind:value={category.totalLimit}
+							/>
+						</label>
+					</div>
+				{:else}
+					<div>
+						<label class="font-medium opacity-50 cursor-not-allowed">
+							Total limit
+							<i
+								class="fa-solid fa-circle-question cursor-help text-gray-500 dark:text-slate-400"
+								title="Not available for Thread or Forum modes"
+							></i>
+							<input
+								type="number"
+								disabled
+								class="input form-input opacity-50 cursor-not-allowed"
+								placeholder="Not available for this mode"
+							/>
+						</label>
+					</div>
+				{/if}
 			</div>
 			<div>
 				<div class="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-700">
