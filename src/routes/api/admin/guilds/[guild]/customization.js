@@ -1,3 +1,5 @@
+const { PermissionFlagsBits, Routes } = require('discord.js');
+
 module.exports.patch = fastify => ({
 	handler: async req => {
 		const data = req.body ?? {};
@@ -13,36 +15,52 @@ module.exports.patch = fastify => ({
 			select: { botAvatar: true, botBio: true, botUsername: true },
 		});
 
-		// 2. Prep Discord Payload
-		const payload = {};
-		if (filteredData.botUsername !== undefined) payload.nick = filteredData.botUsername;
-		
-		// If there is an avatar, ensure it's a Buffer
-		if (filteredData.botAvatar) {
-			const base64Data = filteredData.botAvatar.split(',')[1];
-			// Discord.js handles the conversion to the correct API format 
-			// much better when it starts as a Buffer.
-			payload.avatar = Buffer.from(base64Data, 'base64');
-		} else if (filteredData.botAvatar === null) {
-			payload.avatar = null;
-		}
+		// 2. Prep Discord REST body (use Routes.guildMember to PATCH /guilds/:guild/members/@me)
+		const body = {};
+		if (typeof filteredData.botUsername === 'string') body.nick = filteredData.botUsername || null;
+		if (typeof filteredData.botAvatar === 'string') body.avatar = filteredData.botAvatar; // expect data URI
+		if (filteredData.botAvatar === null) body.avatar = null;
 
 		const guild = client.guilds.cache.get(id);
 		if (guild) {
 			try {
-				// We use .me to hit the @me endpoint specifically
 				const me = guild.members.me || await guild.members.fetch(client.user.id);
-				
-				// We use .edit() but specifically check the result
-				await me.edit(payload);
-				client.log.info(`[SUCCESS] Profile updated for ${id}`);
+				client.log.info('Bot user id: ' + client.user.id);
+				client.log.info('Guild id: ' + id);
+				client.log.info('Bot highest role position: ' + (me.roles?.highest?.position ?? 'unknown'));
+
+				// Permission check for changing nickname
+				const canChangeNick = me.permissions?.has(PermissionFlagsBits.ChangeNickname);
+				client.log.info('Has CHANGE_NICKNAME: ' + !!canChangeNick);
+				if (body.nick && !canChangeNick) {
+					client.log.warn('Bot lacks CHANGE_NICKNAME — nickname update may fail');
+				}
+
+				// Use REST PATCH for the guild member @me endpoint for more explicit control
+				const url = Routes.guildMember(id, '@me');
+				const res = await client.rest.patch(url, { body });
+				client.log.info(`[SUCCESS] Guild member @me patched for ${id}`);
+				// If banner or global avatar/bio changes are present, attempt user-level patch
+				if (typeof filteredData.botBanner === 'string' || filteredData.botBanner === null) {
+					const userBody = {};
+					if (typeof filteredData.botBanner === 'string') userBody.banner = filteredData.botBanner;
+					if (filteredData.botBanner === null) userBody.banner = null;
+					try {
+						await client.rest.patch(Routes.user(client.user.id), { body: userBody });
+						client.log.info(`[SUCCESS] User-level profile patched (banner) for ${client.user.id}`);
+					} catch (userErr) {
+						client.log.error('[DISCORD USER PATCH ERROR] ' + (userErr?.message || userErr));
+					}
+				}
+
+				// return REST result when successful
+				return res;
 			} catch (error) {
-				// This log is the key. 
-				// If it says "Missing Permissions," we check the 'code'
-				client.log.error(`[DISCORD ERROR] ${error.code} - ${error.message}`);
-				
-				// If it's error 50013, it means Discord literally doesn't 
-				// think the bot is allowed to touch its own member object.
+				client.log.error('[DISCORD ERROR] Failed to update guild member @me: ' + (error?.message || error));
+				if (error?.status) client.log.error('HTTP status: ' + error.status);
+				if (error?.code) client.log.error('Discord API code: ' + error.code);
+				if (error?.body) client.log.error('Error body: ' + JSON.stringify(error.body));
+				// Fall through — we already updated DB, return stored customization below
 			}
 		}
 
