@@ -1,5 +1,4 @@
 const { logAdminEvent } = require('../../../../../lib/logging.js');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const BASE64_IMAGE_REGEX = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=]+)$/;
 const MAX_IMAGE_BYTES = { botAvatar: 1024 * 1024 }; // 1MB
@@ -83,46 +82,25 @@ module.exports.patch = fastify => ({
 
 		const guild = client.guilds.cache.get(id);
 		if (guild) {
-			// FORCE FETCH to get the latest permission/role state from Discord
+			// Fetch fresh member data
 			const botMember = await guild.members.fetch(client.user.id).catch(() => null);
 			
 			if (botMember) {
-				// DEBUG: LOG HIERARCHY AND PERMISSIONS
-				const roles = botMember.roles.cache.map(r => ({ name: r.name, pos: r.position }));
-				client.log.info(`[DEBUG] Guild: ${guild.name} (${id})`);
-				client.log.info(`[DEBUG] Bot Roles: ${JSON.stringify(roles)}`);
-				client.log.info(`[DEBUG] Manageable: ${botMember.manageable}`);
-				client.log.info(`[DEBUG] Admin Perm: ${botMember.permissions.has('Administrator')}`);
+				const editData = {};
+				if (filteredData.botUsername !== undefined) editData.nick = filteredData.botUsername;
+				
+				// Discord.js avatar expects a Buffer or a Data URI string
+				if (filteredData.botAvatar !== undefined) editData.avatar = filteredData.botAvatar;
 
-				const payload = {};
-				if (filteredData.botUsername !== undefined) payload.nick = filteredData.botUsername;
-				if (filteredData.botAvatar !== undefined) payload.avatar = filteredData.botAvatar;
-
-				if (Object.keys(payload).length > 0) {
+				if (Object.keys(editData).length > 0) {
 					try {
-						// Using the direct API endpoint for high-visibility debugging
-						const response = await fetch(`https://discord.com/api/v10/guilds/${id}/members/@me`, {
-							method: 'PATCH',
-							headers: {
-								'Authorization': `Bot ${client.token}`,
-								'Content-Type': 'application/json',
-							},
-							body: JSON.stringify(payload),
-						});
-
-						if (!response.ok) {
-							const errorData = await response.json();
-							// THIS IS THE MOST IMPORTANT LOG: It tells us the exact Discord Error Code
-							client.log.error(`[DEBUG] API REJECTED: ${response.status} - ${JSON.stringify(errorData)}`);
-						} else {
-							client.log.info(`[DEBUG] API SUCCESS for guild ${id}`);
-						}
+						// This will work ONLY if Postiz Bots role is above Postiz Tickets role
+						await botMember.edit(editData);
 					} catch (error) {
-						client.log.error(`[DEBUG] FETCH FAILED: ${error.message}`);
+						client.log.error(`[CRITICAL] Still failed to edit bot in ${id}: ${error.message}`);
+						client.log.error(`Ensure "Postiz Bots" is ABOVE "Postiz Tickets" in the role list.`);
 					}
 				}
-			} else {
-				client.log.warn(`[DEBUG] Could not fetch botMember for guild ${id}`);
 			}
 		}
 
