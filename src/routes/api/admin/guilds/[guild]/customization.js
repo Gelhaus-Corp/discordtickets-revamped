@@ -1,4 +1,5 @@
 const { logAdminEvent } = require('../../../../../lib/logging.js');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const BASE64_IMAGE_REGEX = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=]+)$/;
 const MAX_IMAGE_BYTES = { botAvatar: 1024 * 1024 }; // 1MB
@@ -36,11 +37,10 @@ function validateCustomization(data) {
 		}
 
 		const match = value.match(BASE64_IMAGE_REGEX);
-		if (!match) throw new Error(`${field} must be a valid image URI.`);
-		
+		if (!match) throw new Error(`${field} must be a valid image Data URI.`);
 		const imageSize = getBase64ByteLength(match[2]);
 		if (imageSize > MAX_IMAGE_BYTES[field]) {
-			throw new Error(`${field} exceeds 1MB limit.`);
+			throw new Error(`${field} exceeds 1MB.`);
 		}
 		validated[field] = value;
 	}
@@ -74,6 +74,7 @@ module.exports.patch = fastify => ({
 			select: { botAvatar: true, botBio: true, botUsername: true },
 		});
 
+		// 1. Update Database
 		const customization = await client.prisma.guild.upsert({
 			create: { id, ...filteredData },
 			update: filteredData,
@@ -81,39 +82,33 @@ module.exports.patch = fastify => ({
 			select: { botAvatar: true, botBio: true, botUsername: true },
 		});
 
-		const guild = client.guilds.cache.get(id);
-		if (guild) {
-			// Using fetch(client.user.id) instead of .me to ensure we have the member object
-			const botMember = await guild.members.fetch(client.user.id).catch(() => null);
-			
-			if (botMember) {
-				const editData = {};
-				
-				if (Object.prototype.hasOwnProperty.call(filteredData, 'botUsername')) {
-					editData.nick = filteredData.botUsername || null;
-				}
+		// 2. Direct API Request to Discord
+		const payload = {};
+		if (filteredData.botUsername !== undefined) payload.nick = filteredData.botUsername;
+		if (filteredData.botAvatar !== undefined) payload.avatar = filteredData.botAvatar;
 
-				if (Object.prototype.hasOwnProperty.call(filteredData, 'botAvatar')) {
-					if (filteredData.botAvatar === null) {
-						editData.avatar = null;
-					} else {
-						// CRITICAL FIX: Convert the base64 string to a Buffer.
-						// discord.js handles Buffers much better than raw base64 strings
-						const base64Data = filteredData.botAvatar.split(',')[1];
-						editData.avatar = Buffer.from(base64Data, 'base64');
-					}
-				}
+		if (Object.keys(payload).length > 0) {
+			try {
+				// We use /members/@me which is the "Modify Current Member" endpoint.
+				// This endpoint specifically requires the CHANGE_NICKNAME permission.
+				const response = await fetch(`https://discord.com/api/v10/guilds/${id}/members/@me`, {
+					method: 'PATCH',
+					headers: {
+						'Authorization': `Bot ${client.token}`,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify(payload),
+				});
 
-				if (Object.keys(editData).length > 0) {
-					try {
-						// We use edit() which hits PATCH /guilds/{guild.id}/members/@me
-						await botMember.edit(editData);
-					} catch (error) {
-						// If it still says Missing Permissions here, it is because discord.js 
-						// thinks it lacks permissions based on its internal cache.
-						client.log.warn(`API Error: ${error.message}`);
-					}
+				if (!response.ok) {
+					const errorData = await response.json();
+					// Log the JSON error—it will contain a "code" that tells us the exact issue
+					client.log.error(`Discord API Reject: ${response.status} - ${JSON.stringify(errorData)}`);
+				} else {
+					client.log.info(`Direct API update successful for guild ${id}`);
 				}
+			} catch (error) {
+				client.log.error(`Manual API request failed: ${error.message}`);
 			}
 		}
 
@@ -124,7 +119,7 @@ module.exports.patch = fastify => ({
 				updated: customization ? { botBio: customization.botBio, botUsername: customization.botUsername } : null,
 			},
 			guildId: id,
-			target: { id, name: guild?.name || id, type: 'customization' },
+			target: { id, name: client.guilds.cache.get(id)?.name || id, type: 'customization' },
 			userId: req.user.id,
 		});
 
