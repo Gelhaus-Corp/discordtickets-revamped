@@ -74,7 +74,6 @@ module.exports.patch = fastify => ({
 			select: { botAvatar: true, botBio: true, botUsername: true },
 		});
 
-		// 1. Update Database
 		const customization = await client.prisma.guild.upsert({
 			create: { id, ...filteredData },
 			update: filteredData,
@@ -82,33 +81,48 @@ module.exports.patch = fastify => ({
 			select: { botAvatar: true, botBio: true, botUsername: true },
 		});
 
-		// 2. Direct API Request to Discord
-		const payload = {};
-		if (filteredData.botUsername !== undefined) payload.nick = filteredData.botUsername;
-		if (filteredData.botAvatar !== undefined) payload.avatar = filteredData.botAvatar;
+		const guild = client.guilds.cache.get(id);
+		if (guild) {
+			// FORCE FETCH to get the latest permission/role state from Discord
+			const botMember = await guild.members.fetch(client.user.id).catch(() => null);
+			
+			if (botMember) {
+				// DEBUG: LOG HIERARCHY AND PERMISSIONS
+				const roles = botMember.roles.cache.map(r => ({ name: r.name, pos: r.position }));
+				client.log.info(`[DEBUG] Guild: ${guild.name} (${id})`);
+				client.log.info(`[DEBUG] Bot Roles: ${JSON.stringify(roles)}`);
+				client.log.info(`[DEBUG] Manageable: ${botMember.manageable}`);
+				client.log.info(`[DEBUG] Admin Perm: ${botMember.permissions.has('Administrator')}`);
 
-		if (Object.keys(payload).length > 0) {
-			try {
-				// We use /members/@me which is the "Modify Current Member" endpoint.
-				// This endpoint specifically requires the CHANGE_NICKNAME permission.
-				const response = await fetch(`https://discord.com/api/v10/guilds/${id}/members/@me`, {
-					method: 'PATCH',
-					headers: {
-						'Authorization': `Bot ${client.token}`,
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(payload),
-				});
+				const payload = {};
+				if (filteredData.botUsername !== undefined) payload.nick = filteredData.botUsername;
+				if (filteredData.botAvatar !== undefined) payload.avatar = filteredData.botAvatar;
 
-				if (!response.ok) {
-					const errorData = await response.json();
-					// Log the JSON error—it will contain a "code" that tells us the exact issue
-					client.log.error(`Discord API Reject: ${response.status} - ${JSON.stringify(errorData)}`);
-				} else {
-					client.log.info(`Direct API update successful for guild ${id}`);
+				if (Object.keys(payload).length > 0) {
+					try {
+						// Using the direct API endpoint for high-visibility debugging
+						const response = await fetch(`https://discord.com/api/v10/guilds/${id}/members/@me`, {
+							method: 'PATCH',
+							headers: {
+								'Authorization': `Bot ${client.token}`,
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(payload),
+						});
+
+						if (!response.ok) {
+							const errorData = await response.json();
+							// THIS IS THE MOST IMPORTANT LOG: It tells us the exact Discord Error Code
+							client.log.error(`[DEBUG] API REJECTED: ${response.status} - ${JSON.stringify(errorData)}`);
+						} else {
+							client.log.info(`[DEBUG] API SUCCESS for guild ${id}`);
+						}
+					} catch (error) {
+						client.log.error(`[DEBUG] FETCH FAILED: ${error.message}`);
+					}
 				}
-			} catch (error) {
-				client.log.error(`Manual API request failed: ${error.message}`);
+			} else {
+				client.log.warn(`[DEBUG] Could not fetch botMember for guild ${id}`);
 			}
 		}
 
@@ -119,7 +133,7 @@ module.exports.patch = fastify => ({
 				updated: customization ? { botBio: customization.botBio, botUsername: customization.botUsername } : null,
 			},
 			guildId: id,
-			target: { id, name: client.guilds.cache.get(id)?.name || id, type: 'customization' },
+			target: { id, name: guild?.name || id, type: 'customization' },
 			userId: req.user.id,
 		});
 
