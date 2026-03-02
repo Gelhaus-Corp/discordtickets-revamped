@@ -53,22 +53,10 @@ module.exports.get = fastify => ({
 		const id = req.params.guild;
 		const guild = await client.prisma.guild.findUnique({
 			where: { id },
-			select: {
-				botAvatar: true,
-				botBio: true,
-				botUsername: true,
-			},
+			select: { botAvatar: true, botBio: true, botUsername: true },
 		});
 
-		if (!guild) {
-			return {
-				botAvatar: null,
-				botBio: null,
-				botUsername: null,
-			};
-		}
-
-		return guild;
+		return guild || { botAvatar: null, botBio: null, botUsername: null };
 	},
 	onRequest: [fastify.authenticate, fastify.isAdmin],
 });
@@ -76,14 +64,12 @@ module.exports.get = fastify => ({
 module.exports.patch = fastify => ({
 	handler: async req => {
 		const data = req.body ?? {};
-		if (typeof data !== 'object' || Array.isArray(data)) {
-			throw new Error('Invalid customization payload.');
-		}
+		if (typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid customization payload.');
+		
 		const filteredData = validateCustomization(data);
-
 		const client = req.routeOptions.config.client;
 		const id = req.params.guild;
-		
+
 		const original = await client.prisma.guild.findUnique({
 			where: { id },
 			select: { botAvatar: true, botBio: true, botUsername: true },
@@ -102,53 +88,42 @@ module.exports.patch = fastify => ({
 			if (botMember) {
 				const editData = {};
 				
-				// Handle Nickname
 				if (Object.prototype.hasOwnProperty.call(filteredData, 'botUsername')) {
 					editData.nick = filteredData.botUsername || null;
 				}
 
-				// Handle Avatar: Convert Base64 string to Buffer for Discord API
 				if (Object.prototype.hasOwnProperty.call(filteredData, 'botAvatar')) {
-					const avatarData = filteredData.botAvatar;
-					if (avatarData === null) {
+					if (filteredData.botAvatar === null) {
 						editData.avatar = null;
 					} else {
-						// Extract the base64 part and convert to Buffer
-						const base64Part = avatarData.split(',')[1];
+						// FIX: Convert Base64 string to Buffer
+						const base64Part = filteredData.botAvatar.split(',')[1];
 						editData.avatar = Buffer.from(base64Part, 'base64');
 					}
 				}
 
 				if (Object.keys(editData).length > 0) {
 					try {
-						// Ensure bot has permissions to manage itself
-						if (!botMember.permissions.has('ManageNicknames')) {
-							client.log.warn(`Missing "Manage Nicknames" permission in guild ${id}`);
+						// Check if the bot can actually manage itself in this guild
+						if (!botMember.manageable) {
+							client.log.warn(`Bot is not manageable in guild ${id}. Check role hierarchy.`);
 						}
-						
 						await botMember.edit(editData);
 					} catch (error) {
-						// Specific handling for common Discord API errors
 						client.log.warn(`Failed to apply bot guild profile to guild ${id}: ${error.message}`);
 					}
 				}
 			}
 		}
 
-		const diffForLogging = {
-			original: original ? { botBio: original.botBio, botUsername: original.botUsername } : null,
-			updated: customization ? { botBio: customization.botBio, botUsername: customization.botUsername } : null,
-		};
-
 		logAdminEvent(client, {
 			action: 'update',
-			diff: diffForLogging,
-			guildId: id,
-			target: {
-				id,
-				name: client.guilds.cache.get(id)?.name || id,
-				type: 'customization',
+			diff: {
+				original: original ? { botBio: original.botBio, botUsername: original.botUsername } : null,
+				updated: customization ? { botBio: customization.botBio, botUsername: customization.botUsername } : null,
 			},
+			guildId: id,
+			target: { id, name: guild?.name || id, type: 'customization' },
 			userId: req.user.id,
 		});
 
